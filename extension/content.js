@@ -31,8 +31,8 @@ function extractTile(tile, position) {
 
     const channel = tile.querySelector(SEL.channel);
     const durationEl = tile.querySelector(SEL.watchLink);
-    const titleEl = tile.querySelector(mediaType === "short" ? SEL.shortTitle : SEL.title);
-
+    const titleEl = tile.querySelector(mediaType === "short" ? SEL.shortTitle : SEL.title) || tile.querySelector("h3");
+    
 
     return {
         itemId,
@@ -46,23 +46,40 @@ function extractTile(tile, position) {
     };
     }
 
-    
-// Track which items we've already logged so scrolling doesn't re-log them
-const seen = new Set();
 
-// Look at every tile on the page and log any we haven't seen yet
+// Tiles we've already attached an observer to
+const tracked = new WeakSet();
+// For tiles currently on screen: when they entered
+const onScreenSince = new WeakMap();
+
+// Fires when a tile crosses 50% visible, in either direction
+const viewObserver = new IntersectionObserver((entries) => {
+  const now = Date.now();
+  for (const entry of entries) {
+    const tile = entry.target;
+    if (entry.isIntersecting) {
+      onScreenSince.set(tile, now);
+    } else if (onScreenSince.has(tile)) {
+      const enteredAt = onScreenSince.get(tile);
+      onScreenSince.delete(tile);
+      const item = extractTile(tile, [...getTiles()].indexOf(tile));
+      if (!item) continue;
+      console.log("[mirror] impression", { ...item, enteredAt, dwellMs: now - enteredAt });
+    }
+  }
+}, { threshold: 0.5 });
+
+// Attach the observer to any tile we haven't seen yet
 function scanTiles() {
-  const tiles = getTiles();
-  tiles.forEach((tile, i) => {
-    const item = extractTile(tile, i);
-    if (!item || seen.has(item.itemId)) return;
-    seen.add(item.itemId);
-    console.log("[mirror] new tile", item);
+  getTiles().forEach((tile) => {
+    if (tracked.has(tile)) return;
+    tracked.add(tile);
+    viewObserver.observe(tile);
   });
 }
 
 // YouTube adds tiles as you scroll. Re-scan whenever the page changes,
-// but wait 500ms after the last change so we don't scan 100 times a second.
+// debounced so we don't scan 100 times a second.
 let scanTimer = null;
 const observer = new MutationObserver(() => {
   clearTimeout(scanTimer);
@@ -70,5 +87,4 @@ const observer = new MutationObserver(() => {
 });
 observer.observe(document.body, { childList: true, subtree: true });
 
-// Initial scan for tiles that are already there
 scanTiles();

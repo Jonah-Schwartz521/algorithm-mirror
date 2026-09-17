@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Algorithm Mirror",
+  "version": "0.0.1",
+  "description": "Logs what your feed shows you.",
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

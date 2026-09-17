@@ -8,6 +8,7 @@ const SEL = {
   title: "a.ytLockupMetadataViewModelTitle",
   channel: 'a[href^="/@"]',
   ad: "ytd-ad-slot-renderer, [aria-label='Sponsored']",
+ shortTitle: "h3.shortsLockupViewModelHostMetadataTitle",
 };
 
 function getTiles() {
@@ -30,12 +31,13 @@ function extractTile(tile, position) {
 
     const channel = tile.querySelector(SEL.channel);
     const durationEl = tile.querySelector(SEL.watchLink);
+    const titleEl = tile.querySelector(mediaType === "short" ? SEL.shortTitle : SEL.title);
 
 
     return {
         itemId,
         mediaType,
-        title: tile.querySelector(SEL.title)?.textContent.trim() || null,
+        title: titleEl?.textContent.trim() || null,
         channel: channel?.textContent.trim() || null,
         channelHandle: channel?.getAttribute("href") || null,
         duration: mediaType === "video" ? durationEl?.textContent.trim() || null : null,
@@ -44,13 +46,29 @@ function extractTile(tile, position) {
     };
     }
 
-// Wait for YouTube to build the feed, then log the first 10 tiles
-// (temporary, MutationObserver replaces this later)
-setTimeout(() => {
+    
+// Track which items we've already logged so scrolling doesn't re-log them
+const seen = new Set();
+
+// Look at every tile on the page and log any we haven't seen yet
+function scanTiles() {
   const tiles = getTiles();
-  console.log("[mirror] tiles found:", tiles.length);
-  [...tiles].slice(0, 10).forEach((t, i) => {
-    const item = extractTile(t, i);
-    if (item) console.log("[mirror] tile", item);
+  tiles.forEach((tile, i) => {
+    const item = extractTile(tile, i);
+    if (!item || seen.has(item.itemId)) return;
+    seen.add(item.itemId);
+    console.log("[mirror] new tile", item);
   });
-}, 3000);
+}
+
+// YouTube adds tiles as you scroll. Re-scan whenever the page changes,
+// but wait 500ms after the last change so we don't scan 100 times a second.
+let scanTimer = null;
+const observer = new MutationObserver(() => {
+  clearTimeout(scanTimer);
+  scanTimer = setTimeout(scanTiles, 500);
+});
+observer.observe(document.body, { childList: true, subtree: true });
+
+// Initial scan for tiles that are already there
+scanTiles();

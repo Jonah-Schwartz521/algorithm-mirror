@@ -15,27 +15,42 @@ function getTiles() {
 }
 
 // Pull the fields we care about out of one tile
+// Returns null for tiles we don't track (games, empty, placeholders).
 function extractTile(tile, position) {
-  const watch = tile.querySelector(SEL.watchLink);
-  const href = watch?.getAttribute("href") || "";
-  const videoId = new URLSearchParams(href.split("?")[1]).get("v");
-  const channel = tile.querySelector(SEL.channel);
+    const link = tile.querySelector("a[href]");
+    const href = link?.getAttribute("href") || "";
 
-  return {
-    videoId,
-    title: tile.querySelector(SEL.title)?.textContent.trim() || null,
-    channel: channel?.textContent.trim() || null,
-    channelHandle: channel?.getAttribute("href") || null,
-    duration: watch?.textContent.trim() || null,
-    isAd: !!tile.querySelector(SEL.ad),
-    position,
-  };
-}
+    // ID and type come from the URL shape, which is more stable than class names 
+    let itemId = null, mediaType = null;
+    const watch = href.match(/\/watch\?v=([\w-]+)/);
+    const short = href.match(/\/shorts\/([\w-]+)/);
+    if (watch) { itemId = watch[1]; mediaType = "video"; }
+    else if (short) { itemId = short[1]; mediaType = "short"; }
+    else return null;    
 
-// Wait for YouTube to build the feed, then log the first 5 tiles
+    const channel = tile.querySelector(SEL.channel);
+    const durationEl = tile.querySelector(SEL.watchLink);
+
+
+    return {
+        itemId,
+        mediaType,
+        title: tile.querySelector(SEL.title)?.textContent.trim() || null,
+        channel: channel?.textContent.trim() || null,
+        channelHandle: channel?.getAttribute("href") || null,
+        duration: mediaType === "video" ? durationEl?.textContent.trim() || null : null,
+        isAd: !!tile.querySelector(SEL.ad),
+        position,
+    };
+    }
+
+// Wait for YouTube to build the feed, then log the first 10 tiles
 // (temporary, MutationObserver replaces this later)
 setTimeout(() => {
   const tiles = getTiles();
   console.log("[mirror] tiles found:", tiles.length);
-  [...tiles].slice(0, 5).forEach((t, i) => console.log(extractTile(t, i)));
+  [...tiles].slice(0, 10).forEach((t, i) => {
+    const item = extractTile(t, i);
+    if (item) console.log("[mirror] tile", item);
+  });
 }, 3000);

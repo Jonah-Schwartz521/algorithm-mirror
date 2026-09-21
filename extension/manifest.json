@@ -1,14 +1,19 @@
 {
   "manifest_version": 3,
   "name": "Algorithm Mirror",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Logs what your feed shows you.",
   "permissions": ["storage"],
   "host_permissions": ["http://localhost:8000/*"],
   "content_scripts": [
     {
       "matches": ["https://www.youtube.com/*"],
-      "js": ["db.js", "content.js", "sync.js"],
+      "js": ["db.js", "youtube.js", "core.js", "sync.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.reddit.com/*"],
+      "js": ["db.js", "reddit.js", "core.js", "sync.js"],
       "run_at": "document_idle"
     }
   ]

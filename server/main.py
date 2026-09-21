@@ -5,12 +5,13 @@ import os
 import psycopg
 from datetime import datetime, timezone
 app = FastAPI()
+from fastapi.staticfiles import StaticFiles
 
 DB_URL = os.environ.get("DATABASE_URL", "postgresql://mirror:mirror@localhost/algorithm_mirror")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://www.youtube.com"],
+    allow_origins=["https://www.youtube.com", "https://www.reddit.com"],
     allow_methods=["POST"],
     allow_headers=["Content-Type"],
 )
@@ -64,3 +65,56 @@ def sync(batch: Batch):
             )
     print(f"[sync] user={batch.userToken[:8]} items={len(batch.items)} events={len(batch.events)}")
     return {"accepted": [e.id for e in batch.events]}
+
+
+def query(sql: str, params: tuple):
+    with psycopg.connect(DB_URL) as conn, conn.cursor() as cur:
+        cur.execute(sql, params)
+        cols = [d.name for d in cur.description]
+        return [dict(zip(cols, r)) for r in cur.fetchall()]
+
+
+@app.get("/users/{token}/summary")
+def summary(token: str):
+    rows = query(
+        """SELECT COUNT(*) AS impressions,
+                  MIN(p.entered_at) AS first_seen,
+                  MAX(p.entered_at) AS last_seen,
+                  AVG(p.dwell_ms)::int AS avg_dwell_ms,
+                  SUM(CASE WHEN i.media_type = 'short' THEN 1 ELSE 0 END)::float / NULLIF(COUNT(*), 0) AS short_share,
+                  SUM(CASE WHEN i.is_ad THEN 1 ELSE 0 END)::float / NULLIF(COUNT(*), 0) AS ad_share
+           FROM impressions p JOIN items i ON i.item_id = p.item_id
+           WHERE p.user_token = %s AND p.evidence = 'impression'""",
+        (token,),
+    )
+    return rows[0]
+
+
+@app.get("/users/{token}/channels")
+def channels(token: str, limit: int = 10):
+    return query(
+        """SELECT i.channel, i.channel_handle,
+                  COUNT(*) AS impressions,
+                  COUNT(*)::float / SUM(COUNT(*)) OVER () AS share
+           FROM impressions p JOIN items i ON i.item_id = p.item_id
+           WHERE p.user_token = %s AND p.evidence = 'impression' AND i.channel IS NOT NULL
+           GROUP BY i.channel, i.channel_handle
+           ORDER BY impressions DESC
+           LIMIT %s""",
+        (token, limit),
+    )
+
+
+@app.get("/users/{token}/daily")
+def daily(token: str):
+    return query(
+        """SELECT DATE(p.entered_at) AS day, COUNT(*) AS impressions
+           FROM impressions p
+           WHERE p.user_token = %s AND p.evidence = 'impression'
+           GROUP BY day ORDER BY day""",
+        (token,),
+    )
+
+
+# Serve the dashboard from the same origin so the page can call the API without CORS
+app.mount("/dashboard", StaticFiles(directory="../dashboard", html=True), name="dashboard")

@@ -1,17 +1,19 @@
+import os
+from datetime import datetime, timezone
+
+import psycopg
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import os 
-import psycopg
-from datetime import datetime, timezone
-app = FastAPI()
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 DB_URL = os.environ.get("DATABASE_URL", "postgresql://mirror:mirror@localhost/algorithm_mirror")
 
+app = FastAPI()
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://www.youtube.com", "https://www.reddit.com"],
+    allow_origins=["https://www.youtube.com", "https://www.reddit.com", "https://x.com", "https://twitter.com"],
     allow_methods=["POST"],
     allow_headers=["Content-Type"],
 )
@@ -75,7 +77,7 @@ def query(sql: str, params: tuple):
 
 
 @app.get("/users/{token}/summary")
-def summary(token: str):
+def summary(token: str, platform: str | None = None):
     rows = query(
         """SELECT COUNT(*) AS impressions,
                   MIN(p.entered_at) AS first_seen,
@@ -84,35 +86,38 @@ def summary(token: str):
                   SUM(CASE WHEN i.media_type = 'short' THEN 1 ELSE 0 END)::float / NULLIF(COUNT(*), 0) AS short_share,
                   SUM(CASE WHEN i.is_ad THEN 1 ELSE 0 END)::float / NULLIF(COUNT(*), 0) AS ad_share
            FROM impressions p JOIN items i ON i.item_id = p.item_id
-           WHERE p.user_token = %s AND p.evidence = 'impression'""",
-        (token,),
+           WHERE p.user_token = %s AND p.evidence = 'impression'
+             AND (%s::text IS NULL OR i.platform = %s)""",
+        (token, platform, platform),
     )
     return rows[0]
 
 
 @app.get("/users/{token}/channels")
-def channels(token: str, limit: int = 10):
+def channels(token: str, platform: str | None = None, limit: int = 10):
     return query(
         """SELECT i.channel, i.channel_handle,
                   COUNT(*) AS impressions,
                   COUNT(*)::float / SUM(COUNT(*)) OVER () AS share
            FROM impressions p JOIN items i ON i.item_id = p.item_id
            WHERE p.user_token = %s AND p.evidence = 'impression' AND i.channel IS NOT NULL
+             AND (%s::text IS NULL OR i.platform = %s)
            GROUP BY i.channel, i.channel_handle
            ORDER BY impressions DESC
            LIMIT %s""",
-        (token, limit),
+        (token, platform, platform, limit),
     )
 
 
 @app.get("/users/{token}/daily")
-def daily(token: str):
+def daily(token: str, platform: str | None = None):
     return query(
         """SELECT DATE(p.entered_at) AS day, COUNT(*) AS impressions
-           FROM impressions p
+           FROM impressions p JOIN items i ON i.item_id = p.item_id
            WHERE p.user_token = %s AND p.evidence = 'impression'
+             AND (%s::text IS NULL OR i.platform = %s)
            GROUP BY day ORDER BY day""",
-        (token,),
+        (token, platform, platform),
     )
 
 

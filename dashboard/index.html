@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Algorithm Mirror</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #f6f7f9; --card: #ffffff; --ink: #1f2328; --muted: #6b7280; --line: #e5e7eb; --tile: #f0f1f3; --grid: #eceef1;
+    }
+    :root[data-theme="dark"] {
+      --bg: #0f1115; --card: #171a21; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a2f3a; --tile: #1f232c; --grid: #262b35;
+    }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); margin: 0; padding: 20px 20px 40px; transition: background .2s, color .2s; }
+    .wrap { max-width: 1280px; margin: 0 auto; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+    header h1 { font-size: 1.4rem; margin: 0; }
+    header p { color: var(--muted); margin: 2px 0 0; font-size: 0.9rem; }
+    .theme-btn { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; cursor: pointer; font: inherit; font-size: 0.9rem; white-space: nowrap; }
+
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; }
+    @media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } }
+
+    details { background: var(--card); border: 1px solid var(--line); border-left: 5px solid var(--accent); border-radius: 10px; }
+    summary { list-style: none; cursor: pointer; padding: 12px 16px; display: flex; align-items: center; gap: 10px; font-size: 1.05rem; font-weight: 600; user-select: none; }
+    summary::-webkit-details-marker { display: none; }
+    summary .count { color: var(--muted); font-weight: 400; font-size: 0.85rem; }
+    summary .chev { margin-left: auto; color: var(--muted); font-size: 0.75rem; transition: transform .2s; }
+    details[open] summary .chev { transform: rotate(90deg); }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); flex: none; }
+    .body { padding: 0 16px 14px; }
+
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .stat { background: var(--tile); border-radius: 8px; padding: 8px 10px; }
+    .stat b { display: block; font-size: 1.35rem; font-weight: 600; line-height: 1.2; }
+    .stat span { color: var(--muted); font-size: 0.75rem; }
+
+    .chart { margin-top: 12px; }
+    .chart h3 { font-size: 0.85rem; color: var(--muted); font-weight: 500; margin: 0 0 4px; }
+    .chart-box { position: relative; height: 210px; }
+    .chart-box.short { height: 130px; }
+    .empty { color: var(--muted); padding: 4px 0 8px; font-size: 0.9rem; }
+    .note { color: var(--muted); font-size: 0.8rem; margin-top: 14px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Your feed</h1>
+        <p>What YouTube and Reddit have shown you on this computer, measured by Algorithm Mirror.</p>
+      </div>
+      <button class="theme-btn" id="theme">🌙 Dark</button>
+    </header>
+    <div class="grid" id="grid"></div>
+    <p class="note">Only items that were actually on your screen count. Time on screen is capped at 60 seconds per item.</p>
+  </div>
+
+  <script>
+    const token = new URLSearchParams(location.search).get("token");
+
+    // One entry per platform. Order here is the column order.
+    const PLATFORMS = [
+      { key: "youtube", label: "YouTube", color: "#e0382e", sourceWord: "channels" },
+      { key: "reddit",  label: "Reddit",  color: "#ff5700", sourceWord: "subreddits" },
+      { key: "x", label: "X", color: "#1d9bf0", sourceWord: "accounts" },
+    ];
+
+    // ---- theme ----
+    const root = document.documentElement;
+    const themeBtn = document.getElementById("theme");
+    function setTheme(t, redraw = true) {
+      root.dataset.theme = t;
+      themeBtn.textContent = t === "dark" ? "☀️ Light" : "🌙 Dark";
+      try { localStorage.setItem("theme", t); } catch {}
+      if (redraw) PLATFORMS.forEach(renderCharts);
+    }
+    themeBtn.onclick = () => setTheme(root.dataset.theme === "dark" ? "light" : "dark");
+    let initial = "light";
+    try { initial = localStorage.getItem("theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"); } catch {}
+    setTheme(initial, false);
+
+    const cssVar = (n) => getComputedStyle(root).getPropertyValue(n).trim();
+
+    // ---- data ----
+    const api = (platform, path) =>
+      fetch(`/users/${token}/${path}?platform=${platform}`).then((r) => r.json());
+    const fmtDay = (d) => new Date(d + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    const state = {};   // key -> { data, charts }
+
+    // Build both cards up front so column order is fixed
+    for (const p of PLATFORMS) {
+      const d = document.createElement("details");
+      d.id = `sec-${p.key}`;
+      d.open = true;
+      d.style.setProperty("--accent", p.color);
+      d.innerHTML = `
+        <summary><span class="dot"></span>${p.label}<span class="count" id="count-${p.key}"></span><span class="chev">▶</span></summary>
+        <div class="body" id="body-${p.key}"><div class="empty">Loading…</div></div>`;
+      document.getElementById("grid").appendChild(d);
+      d.addEventListener("toggle", () => { if (d.open) renderCharts(p); });
+    }
+
+    async function loadPlatform(p) {
+      const [summary, channels, daily] = await Promise.all([
+        api(p.key, "summary"), api(p.key, "channels"), api(p.key, "daily"),
+      ]);
+      state[p.key] = { data: { summary, channels, daily }, charts: [] };
+      const body = document.getElementById(`body-${p.key}`);
+
+      if (!summary.impressions) {
+        body.innerHTML = `<div class="empty">No ${p.label} data yet. Open ${p.label} in this browser and scroll for a bit.</div>`;
+        return;
+      }
+      document.getElementById(`count-${p.key}`).textContent = `· ${summary.impressions.toLocaleString()} items`;
+
+      const dwell = (summary.median_dwell_ms ?? summary.avg_dwell_ms) / 1000;
+      body.innerHTML = `
+        <div class="stats">
+          <div class="stat"><b>${summary.impressions.toLocaleString()}</b><span>items shown</span></div>
+          <div class="stat"><b>${Math.round(summary.ad_share * 100)}%</b><span>were ads</span></div>
+          <div class="stat"><b>${dwell.toFixed(1)}s</b><span>typical time on screen</span></div>
+        </div>
+        <div class="chart"><h3>Top ${p.sourceWord}</h3><div class="chart-box"><canvas id="${p.key}-channels"></canvas></div></div>
+        <div class="chart"><h3>Items shown per day</h3><div class="chart-box short"><canvas id="${p.key}-daily"></canvas></div></div>`;
+      renderCharts(p);
+    }
+
+    function renderCharts(p) {
+      const s = state[p.key];
+      if (!s || !s.data.summary.impressions) return;
+      if (!document.getElementById(`sec-${p.key}`).open) return;
+      s.charts.forEach((c) => c.destroy());
+      s.charts = [];
+      const { channels, daily } = s.data;
+      const grid = cssVar("--grid");
+      Chart.defaults.color = cssVar("--muted");
+      Chart.defaults.font.size = 11;
+
+      s.charts.push(new Chart(document.getElementById(`${p.key}-channels`), {
+        type: "bar",
+        data: { labels: channels.map((c) => c.channel),
+                datasets: [{ data: channels.map((c) => +(c.share * 100).toFixed(1)), backgroundColor: p.color, borderRadius: 3, barThickness: 12 }] },
+        options: { maintainAspectRatio: false, indexAxis: "y",
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => `${ctx.raw}% of feed` } } },
+          scales: { x: { ticks: { callback: (v) => v + "%" }, grid: { color: grid } }, y: { grid: { display: false } } } },
+      }));
+
+      s.charts.push(new Chart(document.getElementById(`${p.key}-daily`), {
+        type: "bar",
+        data: { labels: daily.map((d) => fmtDay(d.day)),
+                datasets: [{ data: daily.map((d) => d.impressions), backgroundColor: p.color, borderRadius: 3 }] },
+        options: { maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true, grid: { color: grid } }, x: { grid: { display: false } } } },
+      }));
+    }
+
+    if (!token) {
+      document.body.innerHTML = "<p style='padding:40px;font-family:system-ui'>Add <code>?token=YOUR_TOKEN</code> to the URL.</p>";
+    } else {
+      PLATFORMS.forEach(loadPlatform);
+    }
+  </script>
+</body>
+</html>

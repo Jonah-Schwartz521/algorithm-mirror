@@ -1,0 +1,21 @@
+// X adapter: tweets are <article data-testid="tweet">, with stable data-testid hooks inside
+const PLATFORM = {
+  name: "x",
+  tile: 'article[data-testid="tweet"]',
+  extract(tile) {
+    const link = tile.querySelector('a[href*="/status/"]');
+    const m = link?.getAttribute("href").match(/^\/([^/]+)\/status\/(\d+)/);
+    if (!m) return null;
+    const [, author, statusId] = m;
+    const text = tile.querySelector('[data-testid="tweetText"]')?.innerText.trim() || null;
+    return {
+      itemId: statusId,
+      mediaType: tile.querySelector("video") ? "video" : tile.querySelector('[data-testid="tweetPhoto"]') ? "image" : "post",
+      title: text ? text.slice(0, 300) : null,
+      channel: author,
+      channelHandle: `/@${author}`,
+      duration: null,
+      isAd: [...tile.querySelectorAll("span")].some((s) => s.textContent.trim() === "Ad"),
+    };
+  },
+};

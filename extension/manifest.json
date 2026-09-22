@@ -15,6 +15,13 @@
       "matches": ["https://www.reddit.com/*"],
       "js": ["db.js", "reddit.js", "core.js", "sync.js"],
       "run_at": "document_idle"
+
+      
+    },  
+    {
+      "matches": ["https://x.com/*", "https://twitter.com/*"],
+      "js": ["db.js", "x.js", "core.js", "sync.js"],
+      "run_at": "document_idle"
     }
   ]
 }

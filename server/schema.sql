@@ -28,3 +28,12 @@ CREATE TABLE IF NOT EXISTS impressions (
 );
 
 CREATE INDEX IF NOT EXISTS impressions_user_time ON impressions (user_token, entered_at);
+
+CREATE TABLE IF NOT EXISTS item_labels (
+    item_id       TEXT PRIMARY KEY REFERENCES items(item_id),
+    topic         TEXT NOT NULL,
+    tone          TEXT NOT NULL,
+    confidence    REAL,
+    model_version TEXT NOT NULL,
+    labeled_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

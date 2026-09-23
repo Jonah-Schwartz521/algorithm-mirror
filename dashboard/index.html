@@ -2,46 +2,105 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Algorithm Mirror</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {
-      --bg: #f6f7f9; --card: #ffffff; --ink: #1f2328; --muted: #6b7280; --line: #e5e7eb; --tile: #f0f1f3; --grid: #eceef1;
+      color-scheme: light;
+      --bg: #f6f7f9; --card: #ffffff; --ink: #1f2328; --ink-2: #4b5563; --muted: #6b7280;
+      --line: #e5e7eb; --tile: #f3f4f6; --grid: #eceef1; --track: #eef0f3;
+      /* topic identity: fixed slot per topic, validated palette */
+      --t-sports: #2a78d6; --t-entertainment: #eb6834; --t-crime: #1baf7a; --t-health: #eda100;
+      --t-gaming: #e87ba4; --t-technology: #008300; --t-lifestyle: #4a3aa7; --t-rest: #b8bcc4;
+      /* tone: diverging blue (good) - gray - red (bad) */
+      --tone-positive: #2a78d6; --tone-humor: #86b6ef; --tone-neutral: #c9ccd2;
+      --tone-negative: #e66767; --tone-outrage: #b93434;
     }
     :root[data-theme="dark"] {
-      --bg: #0f1115; --card: #171a21; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a2f3a; --tile: #1f232c; --grid: #262b35;
+      color-scheme: dark;
+      --bg: #0f1115; --card: #171a21; --ink: #e6e8eb; --ink-2: #c3c8cf; --muted: #9aa3ad;
+      --line: #2a2f3a; --tile: #1f232c; --grid: #262b35; --track: #222731;
+      --t-sports: #3987e5; --t-entertainment: #d95926; --t-crime: #199e70; --t-health: #c98500;
+      --t-gaming: #d55181; --t-technology: #008300; --t-lifestyle: #9085e9; --t-rest: #4b515d;
+      --tone-positive: #3987e5; --tone-humor: #5598e7; --tone-neutral: #555b66;
+      --tone-negative: #e66767; --tone-outrage: #c24545;
     }
     * { box-sizing: border-box; }
-    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); margin: 0; padding: 20px 20px 40px; transition: background .2s, color .2s; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink);
+           margin: 0; padding: 24px 20px 48px; transition: background .2s, color .2s; }
     .wrap { max-width: 1280px; margin: 0 auto; }
-    header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
-    header h1 { font-size: 1.4rem; margin: 0; }
-    header p { color: var(--muted); margin: 2px 0 0; font-size: 0.9rem; }
-    .theme-btn { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; cursor: pointer; font: inherit; font-size: 0.9rem; white-space: nowrap; }
 
+    header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+    header h1 { font-size: 1.6rem; margin: 0; letter-spacing: -0.01em; }
+    header p { color: var(--muted); margin: 4px 0 0; font-size: 0.92rem; }
+    .theme-btn { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 999px;
+                 padding: 6px 12px; cursor: pointer; font: inherit; font-size: 0.88rem; white-space: nowrap; }
+
+    .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+    h2 { font-size: 1rem; margin: 0; }
+    .sub { color: var(--muted); font-size: 0.82rem; margin: 2px 0 0; }
+
+    /* ---- feed mix (cross-platform) ---- */
+    .mix { padding: 16px 18px; margin-bottom: 16px; }
+    .mix-rows { display: grid; gap: 10px; margin-top: 14px; }
+    .mix-row { display: grid; grid-template-columns: 90px 1fr 170px; align-items: center; gap: 12px; }
+    .mix-name { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.92rem; }
+    .mix-note { color: var(--ink-2); font-size: 0.84rem; }
+    .mix-note b { color: var(--ink); font-weight: 600; }
+    .stack { display: flex; gap: 2px; height: 22px; border-radius: 4px; overflow: hidden; background: var(--track); }
+    .stack.thin { height: 14px; }
+    .seg { height: 100%; min-width: 3px; }
+    .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 14px; font-size: 0.8rem; color: var(--ink-2); }
+    .legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .sw { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+
+    /* ---- platform cards ---- */
     .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; }
     @media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } }
+    @media (max-width: 640px) { .mix-row { grid-template-columns: 1fr; gap: 6px; } }
 
-    details { background: var(--card); border: 1px solid var(--line); border-left: 5px solid var(--accent); border-radius: 10px; }
-    summary { list-style: none; cursor: pointer; padding: 12px 16px; display: flex; align-items: center; gap: 10px; font-size: 1.05rem; font-weight: 600; user-select: none; }
+    details { border-top: 4px solid var(--accent); }
+    summary { list-style: none; cursor: pointer; padding: 14px 16px 10px; display: flex; align-items: center; gap: 10px;
+              font-size: 1.05rem; font-weight: 600; user-select: none; }
     summary::-webkit-details-marker { display: none; }
     summary .count { color: var(--muted); font-weight: 400; font-size: 0.85rem; }
-    summary .chev { margin-left: auto; color: var(--muted); font-size: 0.75rem; transition: transform .2s; }
+    summary .chev { margin-left: auto; color: var(--muted); font-size: 0.7rem; transition: transform .2s; }
     details[open] summary .chev { transform: rotate(90deg); }
     .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); flex: none; }
-    .body { padding: 0 16px 14px; }
+    .body { padding: 0 16px 16px; }
 
     .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-    .stat { background: var(--tile); border-radius: 8px; padding: 8px 10px; }
-    .stat b { display: block; font-size: 1.35rem; font-weight: 600; line-height: 1.2; }
+    .stat { background: var(--tile); border-radius: 8px; padding: 10px 12px; }
+    .stat b { display: block; font-size: 1.4rem; font-weight: 650; line-height: 1.15; font-variant-numeric: tabular-nums; }
     .stat span { color: var(--muted); font-size: 0.75rem; }
 
-    .chart { margin-top: 12px; }
-    .chart h3 { font-size: 0.85rem; color: var(--muted); font-weight: 500; margin: 0 0 4px; }
-    .chart-box { position: relative; height: 210px; }
-    .chart-box.short { height: 130px; }
+    .section { margin-top: 18px; }
+    .section h3 { font-size: 0.78rem; color: var(--muted); font-weight: 600; text-transform: uppercase;
+                  letter-spacing: 0.04em; margin: 0 0 8px; }
+
+    /* ranked bar list: label | bar | value */
+    .bars { display: grid; gap: 5px; }
+    .brow { display: grid; grid-template-columns: 112px 1fr 40px; align-items: center; gap: 8px; font-size: 0.82rem; }
+    .blabel { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .btrack { height: 10px; }
+    .bfill { display: block; height: 100%; border-radius: 0 4px 4px 0; min-width: 2px; }
+    .bval { text-align: right; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+    .brow[hidden] { display: none; }
+    .brow.dim .blabel, .brow.dim .bval { color: var(--muted); }
+    .more { background: none; border: 0; color: var(--muted); font: inherit; font-size: 0.8rem; padding: 6px 0 0; cursor: pointer; }
+    .more:hover { color: var(--ink); }
+
+    .tone-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-size: 0.8rem; color: var(--ink-2); }
+    .tone-legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .tone-legend em { font-style: normal; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+    .chart-box { position: relative; height: 120px; }
     .empty { color: var(--muted); padding: 4px 0 8px; font-size: 0.9rem; }
-    .note { color: var(--muted); font-size: 0.8rem; margin-top: 14px; }
+    .note { color: var(--muted); font-size: 0.8rem; margin-top: 16px; }
+
+    #tip { position: fixed; pointer-events: none; z-index: 10; background: var(--ink); color: var(--card);
+           font-size: 0.8rem; padding: 5px 8px; border-radius: 6px; white-space: nowrap; opacity: 0; transition: opacity .08s; }
   </style>
 </head>
 <body>
@@ -49,13 +108,23 @@
     <header>
       <div>
         <h1>Your feed</h1>
-        <p>What YouTube and Reddit have shown you on this computer, measured by Algorithm Mirror.</p>
+        <p>What YouTube, Reddit and X have shown you on this computer, measured by Algorithm Mirror.</p>
       </div>
       <button class="theme-btn" id="theme">🌙 Dark</button>
     </header>
+
+    <section class="panel mix">
+      <h2>Feed mix at a glance</h2>
+      <p class="sub">Share of what each platform put on your screen, by topic.</p>
+      <div class="mix-rows" id="mix-rows"><div class="empty">Loading…</div></div>
+      <div class="legend" id="mix-legend"></div>
+    </section>
+
     <div class="grid" id="grid"></div>
-    <p class="note">Only items that were actually on your screen count. Time on screen is capped at 60 seconds per item.</p>
+    <p class="note">Only items that were actually on your screen count. Time on screen is capped at 60 seconds per item.
+      Topics and tone are assigned by an AI classifier and can be wrong on individual items.</p>
   </div>
+  <div id="tip"></div>
 
   <script>
     const token = new URLSearchParams(location.search).get("token");
@@ -64,8 +133,14 @@
     const PLATFORMS = [
       { key: "youtube", label: "YouTube", color: "#e0382e", sourceWord: "channels" },
       { key: "reddit",  label: "Reddit",  color: "#ff5700", sourceWord: "subreddits" },
-      { key: "x", label: "X", color: "#1d9bf0", sourceWord: "accounts" },
+      { key: "x",       label: "X",       color: "#1d9bf0", sourceWord: "accounts" },
     ];
+
+    // Each named topic keeps the same color everywhere (color follows the topic, never its rank).
+    // Everything else shares one gray. The order here is also the stacking order.
+    const NAMED_TOPICS = ["sports", "entertainment", "crime", "health", "gaming", "technology", "lifestyle"];
+    const topicColor = (t) => NAMED_TOPICS.includes(t) ? `var(--t-${t})` : "var(--t-rest)";
+    const TONES = ["positive", "humor", "neutral", "negative", "outrage"];
 
     // ---- theme ----
     const root = document.documentElement;
@@ -74,24 +149,74 @@
       root.dataset.theme = t;
       themeBtn.textContent = t === "dark" ? "☀️ Light" : "🌙 Dark";
       try { localStorage.setItem("theme", t); } catch {}
-      if (redraw) PLATFORMS.forEach(renderCharts);
+      if (redraw) PLATFORMS.forEach(drawDaily);
     }
     themeBtn.onclick = () => setTheme(root.dataset.theme === "dark" ? "light" : "dark");
     let initial = "light";
     try { initial = localStorage.getItem("theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"); } catch {}
     setTheme(initial, false);
-
     const cssVar = (n) => getComputedStyle(root).getPropertyValue(n).trim();
 
-    // ---- data ----
-    const api = (platform, path) =>
-      fetch(`/users/${token}/${path}?platform=${platform}`).then((r) => r.json());
-    const fmtDay = (d) => new Date(d + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
-    const state = {};   // key -> { data, charts }
+    // ---- tooltip: any element with data-tip ----
+    const tip = document.getElementById("tip");
+    document.addEventListener("mousemove", (e) => {
+      const el = e.target.closest("[data-tip]");
+      if (!el) { tip.style.opacity = 0; return; }
+      tip.textContent = el.dataset.tip;
+      const w = tip.offsetWidth;
+      tip.style.left = Math.min(e.clientX + 12, innerWidth - w - 8) + "px";
+      tip.style.top = (e.clientY + 14) + "px";
+      tip.style.opacity = 1;
+    });
 
-    // Build both cards up front so column order is fixed
+    // ---- helpers ----
+    const pct = (x) => `${Math.round(x * 100)}%`;
+    const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const fmtDay = (d) => new Date(d + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    const api = (platform, path) => fetch(`/users/${token}/${path}?platform=${platform}`).then((r) => r.json());
+
+    // Ranked list of labeled bars. Bar length is relative to the biggest row.
+    function barList(rows, colorFn, { limit = 99, labelKey = "label", tipWord = "of feed" } = {}) {
+      if (!rows.length) return `<div class="empty">Nothing yet.</div>`;
+      const max = Math.max(...rows.map((r) => r.share));
+      const row = (r, hidden) => {
+        const label = r[labelKey] ?? "(none)";
+        const color = colorFn(label);
+        const dim = color === "var(--t-rest)" ? " dim" : "";
+        return `<div class="brow${dim}" ${hidden ? "hidden" : ""} data-tip="${esc(label)}: ${pct(r.share)} ${tipWord}">
+          <span class="blabel">${esc(label)}</span>
+          <span class="btrack"><span class="bfill" style="width:${(r.share / max) * 100}%;background:${color}"></span></span>
+          <span class="bval">${pct(r.share)}</span></div>`;
+      };
+      const shown = rows.slice(0, limit).map((r) => row(r, false)).join("");
+      const rest = rows.slice(limit);
+      if (!rest.length) return `<div class="bars">${shown}</div>`;
+      return `<div class="bars">${shown}${rest.map((r) => row(r, true)).join("")}</div>
+        <button class="more" onclick="this.previousElementSibling.querySelectorAll('[hidden]').forEach(e=>e.hidden=false);this.remove()">
+          + ${rest.length} more</button>`;
+    }
+
+    // 100% stacked bar in a fixed order.
+    function stackBar(rows, order, colorFn, cls = "") {
+      const byKey = Object.fromEntries(rows.map((r) => [r.label, r.share]));
+      const segs = order.filter((k) => byKey[k] > 0)
+        .map((k) => `<span class="seg" style="flex:${byKey[k]};background:${colorFn(k)}" data-tip="${esc(k)}: ${pct(byKey[k])}"></span>`);
+      return `<div class="stack ${cls}">${segs.join("")}</div>`;
+    }
+
+    // Topics collapsed to the named ones + one "everything else" bucket.
+    function foldTopics(topics) {
+      const out = {}; let rest = 0;
+      for (const r of topics) NAMED_TOPICS.includes(r.label) ? (out[r.label] = r.share) : (rest += r.share);
+      return [...NAMED_TOPICS.map((k) => ({ label: k, share: out[k] || 0 })), { label: "everything else", share: rest }];
+    }
+
+    // ---- state ----
+    const state = {};  // key -> { data, sig, chart }
+
     for (const p of PLATFORMS) {
       const d = document.createElement("details");
+      d.className = "panel";
       d.id = `sec-${p.key}`;
       d.open = true;
       d.style.setProperty("--accent", p.color);
@@ -99,73 +224,102 @@
         <summary><span class="dot"></span>${p.label}<span class="count" id="count-${p.key}"></span><span class="chev">▶</span></summary>
         <div class="body" id="body-${p.key}"><div class="empty">Loading…</div></div>`;
       document.getElementById("grid").appendChild(d);
-      d.addEventListener("toggle", () => { if (d.open) renderCharts(p); });
+      d.addEventListener("toggle", () => { if (d.open) drawDaily(p); });
     }
 
     async function loadPlatform(p) {
-      const [summary, channels, daily] = await Promise.all([
-        api(p.key, "summary"), api(p.key, "channels"), api(p.key, "daily"),
-      ]);
-      state[p.key] = { data: { summary, channels, daily }, charts: [] };
+      const [summary, channels, daily, topics, tones] = await Promise.all(
+        ["summary", "channels", "daily", "topics", "tones"].map((path) => api(p.key, path)));
+      const data = { summary, channels, daily, topics, tones };
+      const sig = JSON.stringify(data);
+      if (state[p.key]?.sig === sig) return;          // nothing changed: no redraw, no flicker
+      state[p.key] = { ...(state[p.key] || {}), data, sig };
+      renderCard(p);
+    }
+
+    function renderCard(p) {
+      const { summary, channels, topics, tones } = state[p.key].data;
       const body = document.getElementById(`body-${p.key}`);
 
       if (!summary.impressions) {
         body.innerHTML = `<div class="empty">No ${p.label} data yet. Open ${p.label} in this browser and scroll for a bit.</div>`;
+        document.getElementById(`count-${p.key}`).textContent = "";
         return;
       }
       document.getElementById(`count-${p.key}`).textContent = `· ${summary.impressions.toLocaleString()} items`;
 
-      const dwell = (summary.median_dwell_ms ?? summary.avg_dwell_ms) / 1000;
+      const dwell = (summary.median_dwell_ms ?? summary.avg_dwell_ms ?? 0) / 1000;
+      const toneRows = TONES.map((t) => ({ label: t, share: (tones.find((r) => r.label === t) || {}).share || 0 }));
+
       body.innerHTML = `
         <div class="stats">
           <div class="stat"><b>${summary.impressions.toLocaleString()}</b><span>items shown</span></div>
-          <div class="stat"><b>${Math.round(summary.ad_share * 100)}%</b><span>were ads</span></div>
+          <div class="stat"><b>${pct(summary.ad_share || 0)}</b><span>were ads</span></div>
           <div class="stat"><b>${dwell.toFixed(1)}s</b><span>typical time on screen</span></div>
         </div>
-        <div class="chart"><h3>Top ${p.sourceWord}</h3><div class="chart-box"><canvas id="${p.key}-channels"></canvas></div></div>
-        <div class="chart"><h3>Items shown per day</h3><div class="chart-box short"><canvas id="${p.key}-daily"></canvas></div></div>`;
-      renderCharts(p);
+
+        <div class="section"><h3>Topics</h3>${barList(topics, topicColor, { limit: 7 })}</div>
+
+        <div class="section"><h3>Tone</h3>
+          ${stackBar(toneRows, TONES, (t) => `var(--tone-${t})`, "thin")}
+          <div class="tone-legend">${toneRows.filter((r) => r.share > 0).map((r) =>
+            `<span><i class="sw" style="background:var(--tone-${r.label})"></i>${r.label} <em>${pct(r.share)}</em></span>`).join("")}</div>
+        </div>
+
+        <div class="section"><h3>Top ${p.sourceWord}</h3>
+          ${barList(channels, () => p.color, { limit: 6, labelKey: "channel" })}</div>
+
+        <div class="section"><h3>Items shown per day</h3><div class="chart-box"><canvas id="${p.key}-daily"></canvas></div></div>`;
+
+      drawDaily(p);
+      renderMix();
     }
 
-    function renderCharts(p) {
+    function drawDaily(p) {
       const s = state[p.key];
-      if (!s || !s.data.summary.impressions) return;
-      if (!document.getElementById(`sec-${p.key}`).open) return;
-      s.charts.forEach((c) => c.destroy());
-      s.charts = [];
-      const { channels, daily } = s.data;
-      const grid = cssVar("--grid");
+      if (!s || !s.data.summary.impressions || !document.getElementById(`sec-${p.key}`).open) return;
+      const canvas = document.getElementById(`${p.key}-daily`);
+      if (!canvas || typeof Chart === "undefined") return;
+      if (s.chart) s.chart.destroy();
       Chart.defaults.color = cssVar("--muted");
       Chart.defaults.font.size = 11;
-
-      s.charts.push(new Chart(document.getElementById(`${p.key}-channels`), {
-        type: "bar",
-        data: { labels: channels.map((c) => c.channel),
-                datasets: [{ data: channels.map((c) => +(c.share * 100).toFixed(1)), backgroundColor: p.color, borderRadius: 3, barThickness: 12 }] },
-        options: { maintainAspectRatio: false, indexAxis: "y",
-          plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => `${ctx.raw}% of feed` } } },
-          scales: { x: { ticks: { callback: (v) => v + "%" }, grid: { color: grid } }, y: { grid: { display: false } } } },
-      }));
-
-      s.charts.push(new Chart(document.getElementById(`${p.key}-daily`), {
+      const { daily } = s.data;
+      s.chart = new Chart(canvas, {
         type: "bar",
         data: { labels: daily.map((d) => fmtDay(d.day)),
-                datasets: [{ data: daily.map((d) => d.impressions), backgroundColor: p.color, borderRadius: 3 }] },
+                datasets: [{ data: daily.map((d) => d.impressions), backgroundColor: p.color,
+                             borderRadius: 4, maxBarThickness: 36 }] },
         options: { maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: { y: { beginAtZero: true, grid: { color: grid } }, x: { grid: { display: false } } } },
-      }));
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => `${ctx.raw} items` } } },
+          scales: { y: { beginAtZero: true, grid: { color: cssVar("--grid") }, ticks: { maxTicksLimit: 4 } },
+                    x: { grid: { display: false } } } },
+      });
+    }
+
+    function renderMix() {
+      const rows = PLATFORMS.filter((p) => state[p.key]?.data.summary.impressions);
+      const el = document.getElementById("mix-rows");
+      if (!rows.length) { el.innerHTML = `<div class="empty">No data yet.</div>`; return; }
+      el.innerHTML = rows.map((p) => {
+        const topics = state[p.key].data.topics;
+        const top = topics.find((r) => r.label !== "unlabeled");
+        const folded = foldTopics(topics);
+        return `<div class="mix-row">
+          <span class="mix-name"><span class="dot" style="background:${p.color}"></span>${p.label}</span>
+          ${stackBar(folded, [...NAMED_TOPICS, "everything else"], topicColor)}
+          <span class="mix-note">${top ? `Mostly <b>${esc(top.label)}</b> (${pct(top.share)})` : ""}</span>
+        </div>`;
+      }).join("");
+      document.getElementById("mix-legend").innerHTML = [...NAMED_TOPICS, "everything else"].map((t) =>
+        `<span><i class="sw" style="background:${topicColor(t)}"></i>${t}</span>`).join("");
     }
 
     if (!token) {
-  document.body.innerHTML =
-    "<p style='padding:40px;font-family:system-ui'>Add <code>?token=YOUR_TOKEN</code> to the URL.</p>";
+      document.body.innerHTML = "<p style='padding:40px;font-family:system-ui'>Add <code>?token=YOUR_TOKEN</code> to the URL.</p>";
     } else {
-      // Initial load
       PLATFORMS.forEach(loadPlatform);
-
-      // Automatically refresh the dashboard every 30 seconds
-      setInterval(() => {
-        PLATFORMS.forEach(loadPlatform);
-      }, 30000);
+      setInterval(() => PLATFORMS.forEach(loadPlatform), 30000);  // refresh; redraws only when data changed
     }
+  </script>
+</body>
+</html>

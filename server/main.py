@@ -193,7 +193,7 @@ def summary(
             COUNT(*) AS impressions,
             MIN(p.entered_at) AS first_seen,
             MAX(p.entered_at) AS last_seen,
-            AVG(p.dwell_ms)::int AS avg_dwell_ms,
+            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY LEAST(p.dwell_ms, 60000))::int AS median_dwell_ms,
 
             SUM(
                 CASE
@@ -318,3 +318,50 @@ def daily(
             platform,
         ),
     )
+
+# --------------------------------------------------
+# Topic / tone breakdown (classifier labels)
+# --------------------------------------------------
+
+# Which classifier version the dashboard shows. Change this in one place
+# when a new version replaces V3.
+LABEL_VERSION = "llama3.1-8b-v3"
+
+
+def label_breakdown(field: str, token: str, platform: str | None):
+    # field comes from the two endpoints below, never from the request
+    assert field in ("topic", "tone")
+    return query(
+        f"""
+        SELECT
+            COALESCE(l.{field}, 'unlabeled') AS label,
+            COUNT(*) AS impressions,
+            COUNT(*)::float / SUM(COUNT(*)) OVER () AS share
+        FROM impressions p
+        JOIN items i
+            ON i.item_id = p.item_id
+        LEFT JOIN item_labels_comparison l
+            ON l.item_id = p.item_id
+           AND l.model_version = %s
+        WHERE
+            p.user_token = %s
+            AND p.evidence = 'impression'
+            AND (
+                %s::text IS NULL
+                OR i.platform = %s
+            )
+        GROUP BY label
+        ORDER BY impressions DESC
+        """,
+        (LABEL_VERSION, token, platform, platform),
+    )
+
+
+@app.get("/users/{token}/topics")
+def topics(token: str, platform: str | None = None):
+    return label_breakdown("topic", token, platform)
+
+
+@app.get("/users/{token}/tones")
+def tones(token: str, platform: str | None = None):
+    return label_breakdown("tone", token, platform)

@@ -149,5 +149,5 @@ function rememberXUsername() {
     result = { error: e.message };
   }
   console.log("[mirror] history", PLATFORM.name, location.pathname, result);
-  chrome.runtime.sendMessage({ type: "historyDone", result }).catch(() => {});
+  try { chrome.runtime?.sendMessage?.({ type: "historyDone", result })?.catch?.(() => {}); } catch {}
 })();

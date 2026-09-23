@@ -25,6 +25,7 @@ async function openHistoryTabs() {
   const urls = [
     "https://www.reddit.com/settings/",  // any Reddit page works; history.js fetches upvoted/saved JSON
     "https://x.com/i/bookmarks",
+    "https://www.youtube.com/feed/history",  // everything you watched, any device
   ];
   // X likes need your handle; history.js learns it the first time you open x.com normally.
   if (xUsername) urls.push(`https://x.com/${xUsername}/likes`);

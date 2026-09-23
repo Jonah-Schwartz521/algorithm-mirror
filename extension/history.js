@@ -82,6 +82,46 @@ async function harvestX() {
   return { found: items.length, added: await storeHistory(items) };
 }
 
+// ---- YouTube: read the watch-history page. Finds videos by their link pattern
+// (/watch?v=ID, /shorts/ID) so it survives YouTube layout changes. ----
+async function harvestYouTube() {
+  const LINKS = 'a[href*="/watch?v="], a[href*="/shorts/"]';
+  const BOXES = "ytd-video-renderer, yt-lockup-view-model, ytd-reel-item-renderer, " +
+                "ytm-shorts-lockup-view-model, ytm-shorts-lockup-view-model-v2";
+  for (let i = 0; i < 20 && !document.querySelector(LINKS); i++) await sleep(500);
+
+  const byId = new Map();
+  const grab = () => {
+    const root = document.querySelector("#primary") || document;  // skip the sidebar
+    root.querySelectorAll(LINKS).forEach((a) => {
+      const href = a.getAttribute("href") || "";
+      const watch = href.match(/[?&]v=([\w-]{11})/);
+      const short = href.match(/\/shorts\/([\w-]{11})/);
+      const itemId = watch?.[1] || short?.[1];
+      if (!itemId || byId.has(itemId)) return;
+      const box = a.closest(BOXES) || a.parentElement;
+      const titleEl = box.querySelector("#video-title, a.ytLockupMetadataViewModelTitle, h3");
+      const title = (titleEl?.getAttribute("title") || titleEl?.textContent ||
+                     a.getAttribute("title") || a.getAttribute("aria-label") || "").trim();
+      if (!title) return;  // thumbnail link seen first; the title link comes next
+      const ch = box.querySelector('a[href^="/@"]');
+      byId.set(itemId, {
+        itemId,
+        mediaType: short ? "short" : "video",
+        title: title.slice(0, 300),
+        channel: ch?.textContent.trim() || null,
+        channelHandle: ch?.getAttribute("href") || null,
+        duration: null,
+        isAd: false,
+      });
+    });
+  };
+  for (let i = 0; i < 4; i++) { grab(); window.scrollBy(0, innerHeight * 2); await sleep(1500); }
+  grab();
+  const items = [...byId.values()];
+  return { found: items.length, added: await storeHistory(items) };
+}
+
 function rememberXUsername() {
   const href = document.querySelector('a[data-testid="AppTabBar_Profile_Link"]')?.getAttribute("href");
   if (href) chrome.storage.local.set({ xUsername: href.slice(1) });
@@ -103,7 +143,8 @@ function rememberXUsername() {
 
   let result;
   try {
-    result = PLATFORM.name === "reddit" ? await harvestReddit() : await harvestX();
+    const harvest = { reddit: harvestReddit, x: harvestX, youtube: harvestYouTube }[PLATFORM.name];
+    result = await harvest();
   } catch (e) {
     result = { error: e.message };
   }

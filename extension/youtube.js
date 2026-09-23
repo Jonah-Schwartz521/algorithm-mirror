@@ -2,6 +2,8 @@
 const PLATFORM = {
   name: "youtube",
   tile: "ytd-rich-item-renderer",
+  // Your watch history (includes phone viewing). Live capture skips it; history.js reads it.
+  historyPage: /^\/feed\/history/,
   extract(tile) {
     const link = tile.querySelector("a[href]");
     const href = link?.getAttribute("href") || "";

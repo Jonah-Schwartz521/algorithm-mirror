@@ -32,6 +32,12 @@
     header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
     header h1 { font-size: 1.6rem; margin: 0; letter-spacing: -0.01em; }
     header p { color: var(--muted); margin: 4px 0 0; font-size: 0.92rem; }
+    .who { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px;
+           background: var(--tile); font-size: 0.85rem; color: var(--ink-2); white-space: nowrap; }
+    .who b { color: var(--ink); letter-spacing: 0.03em; }
+    .who[hidden] { display: none; }
+    .head-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    a.theme-btn { text-decoration: none; }
     .theme-btn { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 999px;
                  padding: 6px 12px; cursor: pointer; font: inherit; font-size: 0.88rem; white-space: nowrap; }
 
@@ -85,6 +91,8 @@
     .p-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 12px; margin-bottom: 14px; }
     .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
     .pill { background: var(--tile); border-radius: 999px; padding: 5px 12px; font-size: 0.84rem; color: var(--ink-2); }
+    a.pill { text-decoration: none; color: var(--ink-2); }
+    a.pill:hover { color: var(--ink); }
     .pill b { color: var(--ink); font-variant-numeric: tabular-nums; }
     .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
     .col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
@@ -151,9 +159,13 @@
     <header>
       <div>
         <h1>Your feed</h1>
-        <p>What YouTube, Reddit and X have shown you on this computer, and what you engaged with on any device.</p>
+        <p>What your feeds have shown you, and what you engaged with, on this computer and your phone.</p>
       </div>
-      <button class="theme-btn" id="theme">🌙 Dark</button>
+      <div class="head-actions">
+        <span class="who" id="who" hidden></span>
+        <a class="theme-btn" id="upload-link" href="/upload">+ Add TikTok / Instagram data</a>
+        <button class="theme-btn" id="theme">🌙 Dark</button>
+      </div>
     </header>
 
     <nav class="tabs" id="tabs" role="tablist"></nav>
@@ -190,6 +202,8 @@
       { key: "youtube", label: "YouTube", color: "#e0382e", sourceWord: "channels", engagedWord: "watched" },
       { key: "reddit",  label: "Reddit",  color: "#ff5700", sourceWord: "subreddits", engagedWord: "upvoted or saved" },
       { key: "x",       label: "X",       color: "#1d9bf0", sourceWord: "accounts", engagedWord: "liked or bookmarked" },
+      { key: "tiktok",  label: "TikTok",  color: "#11b5bb", sourceWord: "creators", engagedWord: "liked", fromExport: true },
+      { key: "instagram", label: "Instagram", color: "#c13584", sourceWord: "accounts", engagedWord: "liked or saved", fromExport: true },
     ];
     const byKey = Object.fromEntries(PLATFORMS.map((p) => [p.key, p]));
 
@@ -368,7 +382,9 @@
       const v = document.getElementById(`view-${p.key}`);
       const { summary, channels, topics, tones, engaged = [] } = state[p.key].data;
       if (!summary.impressions) {
-        v.innerHTML = `<div class="panel"><div class="empty">No ${p.label} data yet. Open ${p.label} in this browser and scroll for a bit.</div></div>`;
+        v.innerHTML = `<div class="panel"><div class="empty">${p.fromExport
+          ? `No ${p.label} data yet. <a href="/upload?token=${encodeURIComponent(token)}">Upload your ${p.label} export</a> to add what you watched on your phone.`
+          : `No ${p.label} data yet. Open ${p.label} in this browser and scroll for a bit.`}</div></div>`;
         return;
       }
       const dwell = (summary.median_dwell_ms ?? summary.avg_dwell_ms ?? 0) / 1000;
@@ -380,7 +396,9 @@
           <div class="pills">
             <span class="pill"><b>${summary.impressions.toLocaleString()}</b> shown</span>
             <span class="pill"><b>${pct(summary.ad_share)}</b> ads</span>
-            <span class="pill"><b>${dwell.toFixed(1)}s</b> typical time on screen</span>
+            ${dwell > 0 ? `<span class="pill"><b>${dwell.toFixed(1)}s</b> typical time on screen</span>` : ""}
+            ${p.fromExport ? `<span class="pill">from your phone export</span>
+              <a class="pill" href="/upload?token=${encodeURIComponent(token)}">Manage upload →</a>` : ""}
           </div>
         </div>
         <div class="cols">
@@ -454,6 +472,17 @@
       if (changed.some(Boolean)) renderOverview();
     }
 
+    // Study code + phase for enrolled participants
+    const PHASE_NAMES = { "not started": "Not started", baseline: "Baseline", treatment: "Treatment week",
+                          washout: "Washout", finished: "Finished" };
+    if (token) fetch(`/users/${encodeURIComponent(token)}/participant`).then((r) => r.json()).then((p) => {
+      if (!p.enrolled) return;
+      const el = document.getElementById("who");
+      el.innerHTML = `<b>${esc(p.studyCode)}</b>${p.phase ? ` · ${PHASE_NAMES[p.phase] || p.phase}` : ""}`;
+      el.hidden = false;
+    }).catch(() => {});
+
+    document.getElementById("upload-link").href = `/upload?token=${encodeURIComponent(token || "")}`;
     if (!token) {
       document.body.innerHTML = "<p style='padding:40px;font-family:system-ui'>Add <code>?token=YOUR_TOKEN</code> to the URL.</p>";
     } else {

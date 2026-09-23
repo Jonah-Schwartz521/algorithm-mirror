@@ -1,6 +1,6 @@
-// Sends unsynced events to the server every 30s while a YouTube tab is open.
+// Sends unsynced events to the server every 30s while a YouTube, Reddit or X tab is open.
 
-const SYNC_URL = "http://localhost:8000/sync";
+const SYNC_URL = `${SERVER}/sync`;  // SERVER comes from config.js
 const SYNC_INTERVAL_MS = 30000;
 
 // Random per-install token. Never the user's name or email.

@@ -367,3 +367,8 @@ def topics(token: str, platform: str | None = None, evidence: str = "impression"
 @app.get("/users/{token}/tones")
 def tones(token: str, platform: str | None = None):
     return label_breakdown("tone", token, platform)
+from uploads import router as upload_router
+app.include_router(upload_router)
+
+from participants import router as participants_router
+app.include_router(participants_router)

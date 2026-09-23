@@ -11,8 +11,15 @@ function ensureAlarm() {
     if (!a) chrome.alarms.create("history-sync", { delayInMinutes: 1, periodInMinutes: HISTORY_EVERY_MIN });
   });
 }
-chrome.runtime.onInstalled.addListener(ensureAlarm);
-chrome.runtime.onStartup.addListener(ensureAlarm);
+// Show a "!" on the toolbar icon until the person joins with a study code.
+async function updateBadge() {
+  const { studyCode } = await chrome.storage.local.get("studyCode");
+  chrome.action.setBadgeText({ text: studyCode ? "" : "!" });
+  chrome.action.setBadgeBackgroundColor({ color: "#d93025" });
+}
+
+chrome.runtime.onInstalled.addListener(() => { ensureAlarm(); updateBadge(); });
+chrome.runtime.onStartup.addListener(() => { ensureAlarm(); updateBadge(); });
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === "history-sync") await openHistoryTabs();

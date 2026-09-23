@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Add Phone Data</title>
+  <style>
+    :root { color-scheme: light; --bg: #f6f7f9; --card: #fff; --ink: #1f2328; --ink-2: #4b5563; --muted: #6b7280;
+            --line: #e5e7eb; --tile: #f3f4f6; --accent: #2a78d6; --good: #0a7d32; --bad: #b42318; }
+    :root[data-theme="dark"] { color-scheme: dark; --bg: #0f1115; --card: #171a21; --ink: #e6e8eb; --ink-2: #c3c8cf;
+            --muted: #9aa3ad; --line: #2a2f3a; --tile: #1f232c; --accent: #3987e5; --good: #4ade80; --bad: #f87171; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink);
+           margin: 0; padding: 24px 20px 48px; }
+    .wrap { max-width: 820px; margin: 0 auto; }
+    a { color: var(--accent); }
+    .back { font-size: 0.9rem; text-decoration: none; }
+    h1 { font-size: 1.5rem; margin: 12px 0 4px; }
+    .lead { color: var(--ink-2); margin: 0 0 20px; line-height: 1.5; }
+    .how { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+    .card h2 { font-size: 1rem; margin: 0 0 8px; display: flex; align-items: center; gap: 8px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    ol { margin: 0; padding-left: 20px; color: var(--ink-2); font-size: 0.9rem; line-height: 1.6; }
+    ol b { color: var(--ink); }
+    .gets { color: var(--muted); font-size: 0.8rem; margin: 10px 0 0; }
+
+    .drop { display: block; margin-top: 16px; border: 2px dashed var(--line); border-radius: 12px; padding: 32px 20px; text-align: center;
+            background: var(--card); cursor: pointer; transition: border-color .15s, background .15s; }
+    .drop.over { border-color: var(--accent); background: var(--tile); }
+    .drop b { display: block; font-size: 1.05rem; margin-bottom: 4px; }
+    .drop span { color: var(--muted); font-size: 0.88rem; }
+    input[type=file] { display: none; }
+
+    .status { margin-top: 14px; padding: 14px 16px; border-radius: 10px; background: var(--tile); font-size: 0.92rem; line-height: 1.5; }
+    .status[hidden] { display: none; }
+    .status.ok { border-left: 4px solid var(--good); }
+    .status.err { border-left: 4px solid var(--bad); }
+    .mine { margin-top: 22px; }
+    .mine h2 { font-size: 1rem; margin: 0 0 10px; }
+    .urow { display: grid; grid-template-columns: 110px 1fr auto; align-items: center; gap: 12px;
+            padding: 12px 0; border-top: 1px solid var(--line); font-size: 0.9rem; }
+    .urow:first-of-type { border-top: 0; padding-top: 2px; }
+    .urow .name { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+    .urow .what { color: var(--ink-2); }
+    .urow .what small { display: block; color: var(--muted); font-size: 0.78rem; }
+    .del { background: none; border: 1px solid var(--line); color: var(--ink-2); border-radius: 8px;
+           padding: 6px 12px; font: inherit; font-size: 0.85rem; cursor: pointer; white-space: nowrap; }
+    .del:hover { border-color: var(--bad); color: var(--bad); }
+    .del.confirm { background: var(--bad); border-color: var(--bad); color: var(--card); font-weight: 600; }
+    .del:disabled { opacity: .5; cursor: default; }
+    @media (max-width: 520px) { .urow { grid-template-columns: 1fr auto; } .urow .what { grid-column: 1 / -1; grid-row: 2; } }
+    .privacy { color: var(--muted); font-size: 0.8rem; margin-top: 18px; line-height: 1.5; }
+    @media (max-width: 700px) { .how { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a class="back" id="back" href="/">← Back to your dashboard</a>
+    <h1>Add your phone data</h1>
+    <p class="lead">TikTok and Instagram mostly happen on your phone, where the browser extension can't see.
+      Their data download fills that gap. Request it in the app, then drop the file here.</p>
+
+    <div class="how">
+      <div class="card">
+        <h2><span class="dot" style="background:#11b5bb"></span>TikTok</h2>
+        <ol>
+          <li>Profile → ☰ → <b>Settings and privacy</b> → <b>Account</b></li>
+          <li><b>Download your data</b> → choose <b>JSON</b> → Request data</li>
+          <li>When it's ready (usually hours), download it from the <b>Download data</b> tab</li>
+        </ol>
+        <p class="gets">Gives us: videos your For You feed played, and your likes.</p>
+      </div>
+      <div class="card">
+        <h2><span class="dot" style="background:#c13584"></span>Instagram</h2>
+        <ol>
+          <li>Settings → <b>Accounts Center</b> → <b>Your information and permissions</b></li>
+          <li><b>Download your information</b> → Some of your information → <b>Your activity</b> + <b>Ads information</b></li>
+          <li>Format <b>JSON</b>, date range <b>All time</b> → download when notified</li>
+        </ol>
+        <p class="gets">Gives us: accounts whose posts you viewed, and posts you liked or saved.</p>
+      </div>
+    </div>
+
+    <label class="drop" id="drop">
+      <b>Drop your .zip or .json here</b>
+      <span>or click to choose a file · we'll figure out which app it's from</span>
+      <input type="file" id="file" accept=".zip,.json,application/zip,application/json">
+    </label>
+    <div class="status" id="status" hidden></div>
+
+    <div class="card mine">
+      <h2>Your uploaded data</h2>
+      <div id="mine"><div class="what">Loading…</div></div>
+    </div>
+
+    <p class="privacy">Your file is read once and then discarded. We keep only what's needed for your dashboard:
+      which videos or accounts you saw or liked, and when. Messages, contacts, and profile details in the export are ignored.
+      You can delete what you uploaded at any time above; your browser-extension data is not affected.</p>
+  </div>
+
+  <script>
+    const token = new URLSearchParams(location.search).get("token");
+    try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch {}
+    document.getElementById("back").href = `/?token=${encodeURIComponent(token || "")}`;
+
+    const statusEl = document.getElementById("status");
+    const show = (html, cls = "") => { statusEl.hidden = false; statusEl.className = `status ${cls}`; statusEl.innerHTML = html; };
+    if (!token) show("Open this page from your dashboard so it knows whose data this is.", "err");
+
+    const NAMES = { tiktok: "TikTok", instagram: "Instagram" };
+    async function upload(file) {
+      if (!token || !file) return;
+      show(`Reading <b>${file.name}</b> (${(file.size / 1048576).toFixed(1)} MB)…`);
+      const form = new FormData();
+      form.append("file", file);
+      try {
+        const res = await fetch(`/users/${encodeURIComponent(token)}/upload`, { method: "POST", body: form });
+        const d = await res.json();
+        if (!res.ok || d.error) return show(d.error || `Upload failed (HTTP ${res.status}).`, "err");
+        const name = NAMES[d.platform] || d.platform;
+        show(`<b>${name} export added.</b> Found ${d.found.toLocaleString()} entries: `
+          + `${d.added_impressions.toLocaleString()} new viewed, ${d.added_engagement.toLocaleString()} new liked/saved.`
+          + (d.found && !d.added_impressions && !d.added_engagement ? " (Already uploaded before, so nothing new.)" : "")
+          + `<br><span style="color:var(--muted)">${d.note || ""}</span>`
+          + `<br><a href="/?token=${encodeURIComponent(token)}#${d.platform}">See it on your dashboard →</a>`, "ok");
+        loadMine();
+      } catch (e) {
+        show("Couldn't reach the server. Is it running?", "err");
+      }
+    }
+
+    // ---- list + delete what this person uploaded ----
+    const COLORS = { tiktok: "#11b5bb", instagram: "#c13584" };
+    const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "";
+    async function loadMine() {
+      const box = document.getElementById("mine");
+      if (!token) { box.innerHTML = ""; return; }
+      try {
+        const rows = await (await fetch(`/users/${encodeURIComponent(token)}/uploads`)).json();
+        box.innerHTML = rows.map((r) => {
+          const has = r.viewed + r.liked > 0;
+          return `<div class="urow">
+            <span class="name"><span class="dot" style="background:${COLORS[r.platform]}"></span>${NAMES[r.platform]}</span>
+            <span class="what">${has
+              ? `${r.viewed.toLocaleString()} viewed · ${r.liked.toLocaleString()} liked/saved<small>${fmtDate(r.first_at)} to ${fmtDate(r.last_at)}</small>`
+              : `<span style="color:var(--muted)">Nothing uploaded</span>`}</span>
+            <button class="del" data-platform="${r.platform}" ${has ? "" : "disabled"}>Delete</button></div>`;
+        }).join("");
+      } catch { box.innerHTML = `<div class="what">Couldn't load your uploads.</div>`; }
+    }
+    // Two-step delete: first click arms the button, second click deletes (resets after 4s).
+    document.getElementById("mine").addEventListener("click", async (e) => {
+      const b = e.target.closest(".del"); if (!b || b.disabled) return;
+      const pl = b.dataset.platform;
+      if (!b.classList.contains("confirm")) {
+        b.classList.add("confirm"); b.textContent = `Delete all ${NAMES[pl]} data?`;
+        setTimeout(() => { if (b.isConnected && b.classList.contains("confirm")) { b.classList.remove("confirm"); b.textContent = "Delete"; } }, 4000);
+        return;
+      }
+      b.disabled = true; b.textContent = "Deleting…";
+      try {
+        const res = await fetch(`/users/${encodeURIComponent(token)}/uploads/${pl}`, { method: "DELETE" });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.error);
+        show(`<b>Deleted your ${NAMES[pl]} upload</b> (${d.deleted.toLocaleString()} entries). Your extension data wasn't touched.`, "ok");
+      } catch { show(`Couldn't delete your ${NAMES[pl]} data. Try again.`, "err"); }
+      loadMine();
+    });
+    loadMine();
+
+    const drop = document.getElementById("drop"), input = document.getElementById("file");
+    input.addEventListener("change", () => upload(input.files[0]));
+    ["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+    ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+    drop.addEventListener("drop", (e) => upload(e.dataTransfer.files[0]));
+  </script>
+</body>
+</html>

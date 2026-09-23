@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    :root { --bg: #ffffff; --ink: #1f2328; --ink-2: #4b5563; --muted: #6b7280; --line: #e5e7eb; --tile: #f3f4f6;
+            --accent: #2a78d6; --accent-ink: #ffffff; --bad: #b42318; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #171a21; --ink: #e6e8eb; --ink-2: #c3c8cf; --muted: #9aa3ad; --line: #2a2f3a; --tile: #1f232c;
+              --accent: #3987e5; --accent-ink: #0f1115; --bad: #f87171; }
+    }
+    * { box-sizing: border-box; }
+    body { width: 300px; margin: 0; padding: 16px; font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+           background: var(--bg); color: var(--ink); font-size: 14px; }
+    h1 { font-size: 15px; margin: 0 0 2px; }
+    .sub { color: var(--muted); font-size: 12px; margin: 0 0 14px; line-height: 1.4; }
+    label { display: block; font-size: 12px; color: var(--ink-2); margin-bottom: 6px; font-weight: 600; }
+    input { width: 100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--tile);
+            color: var(--ink); font: inherit; font-size: 15px; letter-spacing: 0.06em; text-transform: uppercase; }
+    input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+    button, a.btn { display: block; width: 100%; margin-top: 10px; padding: 9px 12px; border-radius: 8px; border: 0;
+                    background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 600;
+                    text-align: center; text-decoration: none; cursor: pointer; }
+    a.btn.secondary { background: var(--tile); color: var(--ink); }
+    button:disabled { opacity: .6; cursor: default; }
+    .err { color: var(--bad); font-size: 12px; margin-top: 8px; min-height: 1em; }
+    .card { background: var(--tile); border-radius: 10px; padding: 12px; }
+    .code { font-size: 20px; font-weight: 700; letter-spacing: 0.04em; }
+    .phase { color: var(--ink-2); font-size: 12px; margin-top: 2px; }
+    .foot { color: var(--muted); font-size: 11px; margin-top: 12px; line-height: 1.4; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <h1>Algorithm Mirror</h1>
+
+  <div id="loading" class="sub">Loading…</div>
+
+  <form id="join" hidden>
+    <p class="sub">Enter the study code your team gave you. You only need to do this once per computer.</p>
+    <label for="code">Study code</label>
+    <input id="code" placeholder="P01-ABCD" autocomplete="off" spellcheck="false" maxlength="12">
+    <button id="join-btn" type="submit">Join study</button>
+    <div class="err" id="err"></div>
+  </form>
+
+  <div id="enrolled" hidden>
+    <p class="sub">Recording what YouTube, Reddit and X show you on this computer.</p>
+    <div class="card">
+      <div class="code" id="my-code"></div>
+      <div class="phase" id="my-phase"></div>
+    </div>
+    <a class="btn" id="dash" target="_blank">Open my dashboard</a>
+    <a class="btn secondary" id="upload" target="_blank">Add TikTok / Instagram data</a>
+    <p class="foot">Your dashboard link is private to you. Please don't share it.</p>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

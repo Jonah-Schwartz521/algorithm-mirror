@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Algorithm Mirror",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Logs what your feed shows you.",
   "permissions": [
     "storage",
@@ -19,6 +19,7 @@
         "https://www.youtube.com/*"
       ],
       "js": [
+        "config.js",
         "db.js",
         "youtube.js",
         "core.js",
@@ -32,6 +33,7 @@
         "https://www.reddit.com/*"
       ],
       "js": [
+        "config.js",
         "db.js",
         "reddit.js",
         "core.js",
@@ -46,6 +48,7 @@
         "https://twitter.com/*"
       ],
       "js": [
+        "config.js",
         "db.js",
         "x.js",
         "core.js",
@@ -54,5 +57,9 @@
       ],
       "run_at": "document_idle"
     }
-  ]
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Algorithm Mirror"
+  }
 }

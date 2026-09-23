@@ -2,6 +2,8 @@
 const PLATFORM = {
   name: "x",
   tile: 'article[data-testid="tweet"]',
+  // Pages that list YOUR activity, not the feed. Live capture skips these.
+  historyPage: /^\/(i\/bookmarks|i\/history\/likes|[^/]+\/likes)(\/|$)/,
   extract(tile) {
     const link = tile.querySelector('a[href*="/status/"]');
     const m = link?.getAttribute("href").match(/^\/([^/]+)\/status\/(\d+)/);

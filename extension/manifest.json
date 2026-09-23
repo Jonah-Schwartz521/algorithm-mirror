@@ -1,10 +1,11 @@
 {
   "manifest_version": 3,
   "name": "Algorithm Mirror",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Logs what your feed shows you.",
-  "permissions": ["storage"],
+  "permissions": ["storage", "alarms"],
   "host_permissions": ["http://localhost:8000/*"],
+  "background": { "service_worker": "background.js" },
   "content_scripts": [
     {
       "matches": ["https://www.youtube.com/*"],
@@ -13,14 +14,12 @@
     },
     {
       "matches": ["https://www.reddit.com/*"],
-      "js": ["db.js", "reddit.js", "core.js", "sync.js"],
+      "js": ["db.js", "reddit.js", "core.js", "sync.js", "history.js"],
       "run_at": "document_idle"
-
-      
-    },  
+    },
     {
       "matches": ["https://x.com/*", "https://twitter.com/*"],
-      "js": ["db.js", "x.js", "core.js", "sync.js"],
+      "js": ["db.js", "x.js", "core.js", "sync.js", "history.js"],
       "run_at": "document_idle"
     }
   ]

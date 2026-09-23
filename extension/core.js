@@ -13,10 +13,14 @@ const viewObserver = new IntersectionObserver((entries) => {
   for (const entry of entries) {
     const tile = entry.target;
     if (entry.isIntersecting) {
+      // A background tab (like a history-sync tab) isn't something you actually saw.
+      if (document.hidden) continue;
       onScreenSince.set(tile, now);
     } else if (onScreenSince.has(tile)) {
       const enteredAt = onScreenSince.get(tile);
       onScreenSince.delete(tile);
+      // Your own likes/upvotes/saves pages are not the feed: never log them as impressions.
+      if (PLATFORM.historyPage && PLATFORM.historyPage.test(location.pathname)) continue;
       const item = PLATFORM.extract(tile);
       if (!item) continue;
       const position = [...getTiles()].indexOf(tile);

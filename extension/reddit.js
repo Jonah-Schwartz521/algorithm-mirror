@@ -2,6 +2,8 @@
 const PLATFORM = {
   name: "reddit",
   tile: "shreddit-post, shreddit-ad-post",
+  // Pages that list YOUR activity, not the feed. Live capture skips these.
+  historyPage: /^\/user\/[^/]+\/(upvoted|downvoted|saved|hidden)/,
   extract(tile) {
     const itemId = tile.getAttribute("id");
     if (!itemId) return null;

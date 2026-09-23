@@ -328,7 +328,7 @@ def daily(
 LABEL_VERSION = "llama3.1-8b-v3"
 
 
-def label_breakdown(field: str, token: str, platform: str | None):
+def label_breakdown(field: str, token: str, platform: str | None, evidence: str = "impression"):
     # field comes from the two endpoints below, never from the request
     assert field in ("topic", "tone")
     return query(
@@ -345,7 +345,7 @@ def label_breakdown(field: str, token: str, platform: str | None):
            AND l.model_version = %s
         WHERE
             p.user_token = %s
-            AND p.evidence = 'impression'
+            AND p.evidence = %s
             AND (
                 %s::text IS NULL
                 OR i.platform = %s
@@ -353,13 +353,15 @@ def label_breakdown(field: str, token: str, platform: str | None):
         GROUP BY label
         ORDER BY impressions DESC
         """,
-        (LABEL_VERSION, token, platform, platform),
+        (LABEL_VERSION, token, evidence, platform, platform),
     )
 
 
 @app.get("/users/{token}/topics")
-def topics(token: str, platform: str | None = None):
-    return label_breakdown("topic", token, platform)
+def topics(token: str, platform: str | None = None, evidence: str = "impression"):
+    if evidence not in ("impression", "engagement"):
+        evidence = "impression"
+    return label_breakdown("topic", token, platform, evidence)
 
 
 @app.get("/users/{token}/tones")

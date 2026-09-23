@@ -95,6 +95,12 @@
     .tone-legend span { display: inline-flex; align-items: center; gap: 5px; }
     .tone-legend em { font-style: normal; color: var(--muted); font-variant-numeric: tabular-nums; }
 
+    .cmp { display: grid; grid-template-columns: 84px 1fr; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .cmp-l { color: var(--ink-2); font-size: 0.8rem; }
+    .cmp-note { color: var(--ink-2); font-size: 0.84rem; margin: 8px 0 0; line-height: 1.4; }
+    .cmp-note b { color: var(--ink); }
+    .cmp-meta { color: var(--muted); font-size: 0.76rem; margin: 4px 0 0; }
+
     .chart-box { position: relative; height: 120px; }
     .empty { color: var(--muted); padding: 4px 0 8px; font-size: 0.9rem; }
     .note { color: var(--muted); font-size: 0.8rem; margin-top: 16px; }
@@ -173,7 +179,8 @@
     const pct = (x) => `${Math.round(x * 100)}%`;
     const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
     const fmtDay = (d) => new Date(d + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
-    const api = (platform, path) => fetch(`/users/${token}/${path}?platform=${platform}`).then((r) => r.json());
+    const api = (platform, path, extra = "") =>
+      fetch(`/users/${token}/${path}?platform=${platform}${extra}`).then((r) => r.json());
 
     // Ranked list of labeled bars. Bar length is relative to the biggest row.
     function barList(rows, colorFn, { limit = 99, labelKey = "label", tipWord = "of feed" } = {}) {
@@ -211,6 +218,39 @@
       return [...NAMED_TOPICS.map((k) => ({ label: k, share: out[k] || 0 })), { label: "everything else", share: rest }];
     }
 
+    // Feed topic mix vs. the mix of what you liked/upvoted/saved (which includes phone activity).
+    const MIX_ORDER = [...NAMED_TOPICS, "everything else"];
+    function compareSection(feed, engaged) {
+      const total = engaged.reduce((a, r) => a + r.impressions, 0);
+      const head = `<h3>Feed vs. what you engaged with</h3>`;
+      if (!total) return `<div class="section">${head}
+        <div class="empty">No likes, upvotes or saves synced for this platform yet.</div></div>`;
+
+      // Biggest gap across real topics (ignore "unlabeled")
+      const share = (rows, k) => (rows.find((r) => r.label === k) || {}).share || 0;
+      const labels = [...new Set([...feed, ...engaged].map((r) => r.label))].filter((k) => k !== "unlabeled" && k !== "other");
+      let gap = null;
+      for (const k of labels) {
+        const d = share(feed, k) - share(engaged, k);
+        if (!gap || Math.abs(d) > Math.abs(gap.d)) gap = { k, d, f: share(feed, k), e: share(engaged, k) };
+      }
+      const unl = share(engaged, "unlabeled");
+      const MIN_ENGAGED = 10;  // below this, percentages are noise
+      const gapText = total < MIN_ENGAGED
+        ? `Only ${total} synced so far, too few to compare yet.`
+        : gap && Math.abs(gap.d) >= 0.05
+        ? `Biggest gap: <b>${esc(gap.k)}</b> is ${pct(gap.f)} of your feed but ${pct(gap.e)} of what you engaged with.`
+        : `Your feed and your engagement have a similar topic mix.`;
+
+      return `<div class="section">${head}
+        <div class="cmp"><span class="cmp-l">Feed</span>${stackBar(foldTopics(feed), MIX_ORDER, topicColor, "thin")}</div>
+        <div class="cmp"><span class="cmp-l">You engaged</span>${stackBar(foldTopics(engaged), MIX_ORDER, topicColor, "thin")}</div>
+        <p class="cmp-note">${gapText}</p>
+        <p class="cmp-meta">${total.toLocaleString()} ${total === 1 ? "item" : "items"} you liked, upvoted or saved · includes phone activity
+          ${unl > 0.2 ? ` · ${pct(unl)} not labeled yet` : ""}</p>
+      </div>`;
+    }
+
     // ---- state ----
     const state = {};  // key -> { data, sig, chart }
 
@@ -228,9 +268,11 @@
     }
 
     async function loadPlatform(p) {
-      const [summary, channels, daily, topics, tones] = await Promise.all(
-        ["summary", "channels", "daily", "topics", "tones"].map((path) => api(p.key, path)));
-      const data = { summary, channels, daily, topics, tones };
+      const [summary, channels, daily, topics, tones, engaged] = await Promise.all([
+        ...["summary", "channels", "daily", "topics", "tones"].map((path) => api(p.key, path)),
+        api(p.key, "topics", "&evidence=engagement"),   // likes/upvotes/saves, all devices
+      ]);
+      const data = { summary, channels, daily, topics, tones, engaged };
       const sig = JSON.stringify(data);
       if (state[p.key]?.sig === sig) return;          // nothing changed: no redraw, no flicker
       state[p.key] = { ...(state[p.key] || {}), data, sig };
@@ -238,7 +280,7 @@
     }
 
     function renderCard(p) {
-      const { summary, channels, topics, tones } = state[p.key].data;
+      const { summary, channels, topics, tones, engaged = [] } = state[p.key].data;
       const body = document.getElementById(`body-${p.key}`);
 
       if (!summary.impressions) {
@@ -259,6 +301,8 @@
         </div>
 
         <div class="section"><h3>Topics</h3>${barList(topics, topicColor, { limit: 7 })}</div>
+
+        ${compareSection(topics, engaged)}
 
         <div class="section"><h3>Tone</h3>
           ${stackBar(toneRows, TONES, (t) => `var(--tone-${t})`, "thin")}

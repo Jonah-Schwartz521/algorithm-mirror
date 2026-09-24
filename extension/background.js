@@ -28,7 +28,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 
 async function openHistoryTabs() {
   await closeHistoryTabs();  // leftovers from a previous run
-  const { xUsername } = await chrome.storage.local.get("xUsername");
+  const { xUsername, liUsername } = await chrome.storage.local.get(["xUsername", "liUsername"]);
   const urls = [
     "https://www.reddit.com/settings/",  // any Reddit page works; history.js fetches upvoted/saved JSON
     "https://x.com/i/bookmarks",
@@ -37,6 +37,9 @@ async function openHistoryTabs() {
   ];
   // X likes need your handle; history.js learns it the first time you open x.com normally.
   if (xUsername) urls.push(`https://x.com/${xUsername}/likes`);
+  urls.push("https://www.linkedin.com/my-items/saved-posts/");
+  // LinkedIn reactions need your handle; history.js learns it the first time you open linkedin.com.
+  if (liUsername) urls.push(`https://www.linkedin.com/in/${liUsername}/recent-activity/reactions/`);
 
   // Tell history.js "a sync is running" through storage (Reddit strips URL #markers).
   const now = Date.now();

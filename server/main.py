@@ -33,7 +33,7 @@ app.add_middleware(
     allow_origins=[
         "https://www.youtube.com",
         "https://www.reddit.com",
-        "https://x.com", "https://www.instagram.com",
+        "https://x.com", "https://www.instagram.com", "https://www.linkedin.com",
         "https://twitter.com",
     ],
     allow_methods=["POST"],
@@ -367,6 +367,22 @@ def topics(token: str, platform: str | None = None, evidence: str = "impression"
 @app.get("/users/{token}/tones")
 def tones(token: str, platform: str | None = None):
     return label_breakdown("tone", token, platform)
+
+@app.get("/users/{token}/freshness")
+def freshness(token: str):
+    """When this person's extension last sent data, and when labeling last ran."""
+    return query(
+        """
+        SELECT
+            (SELECT MAX(received_at) FROM impressions
+              WHERE user_token = %s AND source IN ('live', 'account_history')) AS last_synced,
+            (SELECT MAX(created_at) AT TIME ZONE current_setting('TimeZone')
+               FROM item_labels_comparison WHERE model_version = %s) AS labels_updated
+        """,
+        (token, LABEL_VERSION),
+    )[0]
+
+
 from uploads import router as upload_router
 app.include_router(upload_router)
 

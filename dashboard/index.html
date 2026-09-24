@@ -152,6 +152,7 @@
       .brow { grid-template-columns: 100px 1fr 38px; }
       .stat b { font-size: 1.25rem; }
     }
+    .fresh { font-size: 0.8rem !important; margin-top: 6px !important; }
   </style>
 </head>
 <body>
@@ -160,6 +161,7 @@
       <div>
         <h1>Your feed</h1>
         <p>What your feeds have shown you, and what you engaged with, on this computer and your phone.</p>
+        <p class="fresh" id="fresh"></p>
       </div>
       <div class="head-actions">
         <span class="who" id="who" hidden></span>
@@ -204,6 +206,7 @@
       { key: "x",       label: "X",       color: "#1d9bf0", sourceWord: "accounts", engagedWord: "liked or bookmarked" },
       { key: "tiktok",  label: "TikTok",  color: "#11b5bb", sourceWord: "creators", engagedWord: "liked", fromExport: true },
       { key: "instagram", label: "Instagram", color: "#c13584", sourceWord: "accounts", engagedWord: "liked or saved", fromExport: true },
+      { key: "linkedin", label: "LinkedIn", color: "#0a66c2", sourceWord: "accounts", engagedWord: "reacted to or saved" },
     ];
     const byKey = Object.fromEntries(PLATFORMS.map((p) => [p.key, p]));
 
@@ -471,6 +474,27 @@
       const changed = await Promise.all(PLATFORMS.map((p) => loadPlatform(p).catch(() => false)));
       if (changed.some(Boolean)) renderOverview();
     }
+
+    // "Data synced ... / Topic labels updated ..." line under the title
+    const ago = (iso) => {
+      if (!iso) return "never";
+      const m = Math.round((Date.now() - new Date(iso)) / 60000);
+      if (m < 2) return "just now";
+      if (m < 60) return `${m} min ago`;
+      const h = Math.round(m / 60);
+      if (h < 24) return `${h} hr ago`;
+      const days = Math.round(h / 24);
+      return days === 1 ? "yesterday" : `${days} days ago`;
+    };
+    function loadFreshness() {
+      fetch(`/users/${encodeURIComponent(token)}/freshness`).then((r) => r.json()).then((f) => {
+        const el = document.getElementById("fresh");
+        el.textContent = `Data synced ${ago(f.last_synced)} · Topic labels updated ${ago(f.labels_updated)}`;
+        el.title = `Synced: ${f.last_synced ? new Date(f.last_synced).toLocaleString() : "never"}\n` +
+                   `Labels: ${f.labels_updated ? new Date(f.labels_updated).toLocaleString() : "never"}`;
+      }).catch(() => {});
+    }
+    if (token) { loadFreshness(); setInterval(loadFreshness, 60000); }
 
     // Study code + phase for enrolled participants
     const PHASE_NAMES = { "not started": "Not started", baseline: "Baseline", treatment: "Treatment week",

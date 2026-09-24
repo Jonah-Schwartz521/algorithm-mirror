@@ -182,6 +182,53 @@ async function harvestInstagram() {
   return out;
 }
 
+// ---- LinkedIn: reactions page shows posts as feed cards; saved-posts page shows
+// search-style rows that link to the post. Handle both. ----
+async function harvestLinkedIn() {
+  const LINK = 'a[href*="urn:li:activity:"], a[href*="urn:li:ugcPost:"], a[href*="urn:li:share:"]';
+  for (let i = 0; i < 20 && !document.querySelector(`${PLATFORM.tile}, ${LINK}`); i++) await sleep(500);
+  const byId = new Map();
+  const grab = () => {
+    document.querySelectorAll(PLATFORM.tile).forEach((t) => {
+      const it = PLATFORM.extract(t);
+      if (it && !byId.has(it.itemId)) byId.set(it.itemId, it);
+    });
+    document.querySelectorAll(LINK).forEach((a) => {
+      const m = decodeURIComponent(a.getAttribute("href") || "").match(LI_URN);
+      if (!m) return;
+      const itemId = `li:${m[1]}:${m[2]}`;
+      if (byId.has(itemId)) return;
+      const box = a.closest("li") || a.parentElement;
+      const actor = box?.querySelector('a[href*="/in/"], a[href*="/company/"]');
+      const text = (box?.innerText || "").replace(/\s+/g, " ").trim();
+      byId.set(itemId, {
+        itemId, mediaType: "post",
+        title: text ? text.slice(0, 300) : null,
+        channel: actor?.innerText?.trim().split("\n")[0] || null,
+        channelHandle: actor ? new URL(actor.href, location.origin).pathname.replace(/\/$/, "") : null,
+        duration: null, isAd: false,
+      });
+    });
+  };
+  await scrollUntilCaughtUp(grab, byId);
+  const items = [...byId.values()];
+  return { found: items.length, added: await storeHistory(items) };
+}
+
+// Learn your LinkedIn handle (needed for the reactions page). Uses the same
+// endpoint linkedin.com calls for your own profile; falls back to the sidebar link.
+async function rememberLinkedInUsername() {
+  try {
+    const csrf = (document.cookie.match(/(?:^|; )JSESSIONID="?([^";]+)/) || [])[1];
+    const r = await fetch("/voyager/api/me", { credentials: "include", headers: { "csrf-token": csrf || "" } });
+    const id = (await r.text()).match(/"publicIdentifier"\s*:\s*"([^"]+)"/)?.[1];
+    if (id) return chrome.storage.local.set({ liUsername: id });
+  } catch {}
+  const a = document.querySelector('.feed-identity-module a[href*="/in/"], a.profile-card-profile-link, aside a[href*="/in/"]');
+  const id = a?.getAttribute("href")?.match(/\/in\/([^/?#]+)/)?.[1];
+  if (id) chrome.storage.local.set({ liUsername: id });
+}
+
 function rememberXUsername() {
   const href = document.querySelector('a[data-testid="AppTabBar_Profile_Link"]')?.getAttribute("href");
   if (href) chrome.storage.local.set({ xUsername: href.slice(1) });
@@ -189,6 +236,7 @@ function rememberXUsername() {
 
 (async () => {
   if (PLATFORM.name === "x") setTimeout(rememberXUsername, 3000);
+  if (PLATFORM.name === "linkedin") setTimeout(rememberLinkedInUsername, 3000);
 
   // Run if the background just started a sync (flag in storage, set < 2 min ago),
   // or if you opened your own likes/upvotes/saves page yourself.
@@ -205,7 +253,7 @@ function rememberXUsername() {
 
   let result;
   try {
-    const harvest = { reddit: harvestReddit, x: harvestX, youtube: harvestYouTube, instagram: harvestInstagram }[PLATFORM.name];
+    const harvest = { reddit: harvestReddit, x: harvestX, youtube: harvestYouTube, instagram: harvestInstagram, linkedin: harvestLinkedIn }[PLATFORM.name];
     result = await harvest();
   } catch (e) {
     result = { error: e.message };

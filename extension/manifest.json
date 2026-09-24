@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Algorithm Mirror",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Logs what your feed shows you.",
   "permissions": [
     "storage",
@@ -65,6 +65,20 @@
         "config.js",
         "db.js",
         "instagram.js",
+        "sync.js",
+        "history.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.linkedin.com/*"
+      ],
+      "js": [
+        "config.js",
+        "db.js",
+        "linkedin.js",
+        "core.js",
         "sync.js",
         "history.js"
       ],

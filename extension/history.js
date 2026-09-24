@@ -236,7 +236,6 @@ function rememberXUsername() {
 
 (async () => {
   if (PLATFORM.name === "x") setTimeout(rememberXUsername, 3000);
-  if (PLATFORM.name === "linkedin") setTimeout(rememberLinkedInUsername, 3000);
 
   // Run if the background just started a sync (flag in storage, set < 2 min ago),
   // or if you opened your own likes/upvotes/saves page yourself.

@@ -1,58 +1,93 @@
-// LinkedIn adapter. Feed posts carry an id like "urn:li:activity:123" on the card
-// (data-urn / data-id), so we key on that instead of LinkedIn's class names.
-const LI_URN = /urn:li:(activity|ugcPost|share):(\d+)/;
-const LI_TILE = 'div[data-id*="urn:li:"], div[data-urn*="urn:li:"], div.feed-shared-update-v2';
+// LinkedIn adapter (feed only). LinkedIn's current site has no post ids or stable
+// class names, so we find each post by the hidden "Feed post" heading it carries,
+// and build a stable id from the author + the post's main text.
+const LI_MARK = "Feed post";
+const LI_NOISE = new RegExp([
+  "^(Feed post|Promoted|Suggested|Follow|\\+ Follow|Following|Like|Comment|Repost|Send|Edited|…more|more|…see more)$",
+  "^•? ?\\d(st|nd|rd|th)\\+?$",                       // • 1st
+  "^[\\d,.]+K? followers$",                           // 278,018 followers
+  "^\\d+(s|m|h|d|w|mo|y|yr)s? •.*$",                  // 1w •
+  "^[\\d,.]+K?( (reactions?|comments?|reposts?))?$",  // 45 / 12 comments
+  "^[\\d,.]+ (comments?|reposts?) ?(•.*)?$",
+  " and [\\d,]+ others?$",
+  " (likes|loves|celebrates|supports|commented on|reposted) this$",
+  "^Visible to anyone",
+].join("|"), "i");
 
-function liFindUrn(tile) {
-  for (const el of [tile, ...tile.querySelectorAll("[data-urn], [data-id]")]) {
-    const m = `${el.getAttribute("data-urn") || ""} ${el.getAttribute("data-id") || ""}`.match(LI_URN);
-    if (m) return m;
-  }
-  const a = tile.querySelector('a[href*="urn:li:activity:"], a[href*="urn:li:ugcPost:"], a[href*="urn:li:share:"]');
-  return a ? decodeURIComponent(a.getAttribute("href")).match(LI_URN) : null;
+function liMarkers(root) {
+  return [...root.querySelectorAll("h2, h3, span")].filter(
+    (e) => e.childElementCount === 0 && e.textContent.trim() === LI_MARK);
 }
 
-const firstText = (root, sels) => {
-  for (const s of sels) {
-    const t = root.querySelector(s)?.innerText?.trim();
-    if (t) return t;
-  }
-  return null;
-};
+function liHash(s) {  // FNV-1a: same input, same id, every session
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return (h >>> 0).toString(36);
+}
 
 const PLATFORM = {
   name: "linkedin",
-  tile: LI_TILE,
-  // Your own reactions / saved-posts pages. Live capture skips these.
-  historyPage: /^\/(in\/[^/]+\/recent-activity\/reactions|my-items\/saved-posts)(\/|$)/,
+  tile: "div[componentkey]",
+  historyPage: null,   // no account sync for LinkedIn (it aggressively detects automation)
   extract(tile) {
-    if (tile.parentElement?.closest(LI_TILE)) return null;  // nested card (reshare): count the outer one
-    const m = liFindUrn(tile);
-    if (!m) return null;
-    const actorLink = tile.querySelector(
-      '.update-components-actor__meta-link, .update-components-actor a[href*="/in/"], .update-components-actor a[href*="/company/"], a[href*="/in/"], a[href*="/company/"]');
-    const author = firstText(tile, [
-      '.update-components-actor__title span[aria-hidden="true"]',
-      '.update-components-actor__name span[aria-hidden="true"]',
-      ".update-components-actor__title", ".update-components-actor__name", ".feed-shared-actor__name",
-    ]) || actorLink?.innerText?.trim().split("\n")[0] || null;
-    const text = firstText(tile, [
-      ".update-components-text", ".feed-shared-update-v2__description", ".feed-shared-inline-show-more-text",
-      ".feed-shared-text",
-    ]);
+    if (liMarkers(tile).length !== 1) return null;             // must hold exactly one post
+    const outer = tile.parentElement?.closest("[componentkey]");
+    if (outer && liMarkers(outer).length === 1) return null;   // a bigger box holds this same post
+    const who = [...tile.querySelectorAll('a[href*="/in/"], a[href*="/company/"]')]
+      .find((a) => (a.innerText || "").trim());
+    const author = who ? who.innerText.trim().split("\n")[0].trim() : null;
     let handle = null;
-    try { handle = actorLink ? new URL(actorLink.href, location.origin).pathname.replace(/\/$/, "") : null; } catch {}
-    const head = (tile.innerText || "").slice(0, 400);
+    try { handle = who ? new URL(who.href, location.origin).pathname.replace(/\/$/, "") : null; } catch {}
+    const raw = tile.innerText || "";
+    const lines = raw.split("\n").map((l) => l.trim())
+      .filter((l) => l && l !== author && !LI_NOISE.test(l));
+    if (!lines.length && !author) return null;
+    const main = lines.reduce((a, b) => (b.length > a.length ? b : a), "");  // longest line = the post itself
     return {
-      itemId: `li:${m[1]}:${m[2]}`,
-      mediaType: tile.querySelector("video") ? "video"
-        : tile.querySelector(".update-components-article, .feed-shared-article") ? "article"
-        : tile.querySelector(".update-components-image, .feed-shared-image") ? "image" : "post",
-      title: (text || (author ? `LinkedIn post from ${author}` : "")).replace(/\s+/g, " ").slice(0, 300) || null,
+      itemId: `li:${liHash(`${handle || author}|${main.slice(0, 200)}`)}`,
+      mediaType: tile.querySelector("video") ? "video" : "post",
+      title: (lines.join(" ").replace(/\s+/g, " ").trim() || `LinkedIn post from ${author}`).slice(0, 300),
       channel: author,
       channelHandle: handle,
       duration: null,
-      isAd: /\bPromoted\b/.test(head) || /sponsored/i.test(tile.getAttribute("data-id") || ""),
+      isAd: /(^|\n)\s*Promoted\s*(\n|$)/.test(raw),
     };
   },
 };
+
+// ---- Reactions, recorded as they happen (no background tabs, no extra requests) ----
+// When you click Like (or pick Celebrate/Support/... from the reaction menu) on a post,
+// log that post as engagement. Clicking again to un-react is ignored.
+const LI_REACT = /^(Like|Celebrate|Support|Love|Insightful|Funny|Curious)$/i;
+const LI_REACT_LABEL = /^(React\b|Like\b|Celebrate\b|Support\b|Love\b|Insightful\b|Funny\b|Curious\b)/i;
+let liLastPost = null;            // post under the Like button you last hovered (the reaction menu floats outside it)
+const liReacted = new Set();      // one engagement per post per page load
+
+function liPostFor(el) {
+  for (let t = el.closest("[componentkey]"); t; t = t.parentElement?.closest("[componentkey]")) {
+    const it = PLATFORM.extract(t);
+    if (it) return it;
+  }
+  return null;
+}
+const liIsReactButton = (b) =>
+  !!b && (LI_REACT.test((b.innerText || "").trim()) || LI_REACT_LABEL.test(b.getAttribute("aria-label") || ""));
+
+document.addEventListener("mouseover", (e) => {
+  const b = e.target.closest?.("button");
+  if (liIsReactButton(b)) { const p = liPostFor(b); if (p) liLastPost = p; }
+}, true);
+
+function liReactClicks(e) {
+  const b = e.target.closest?.("button");
+  if (!liIsReactButton(b)) return;
+  if (b.getAttribute("aria-pressed") === "true") return;          // un-reacting
+  const post = liPostFor(b) || liLastPost;
+  if (!post || liReacted.has(post.itemId)) return;
+  liReacted.add(post.itemId);
+  saveImpression(
+    { ...post, platform: PLATFORM.name },
+    { itemId: post.itemId, position: 0, enteredAt: Date.now(), dwellMs: 0, source: "live", evidence: "engagement" }
+  ).then(() => console.log("[mirror] reacted", post.itemId));
+}
+document.addEventListener("click", liReactClicks, true);

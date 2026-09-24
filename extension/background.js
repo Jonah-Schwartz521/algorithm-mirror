@@ -37,9 +37,6 @@ async function openHistoryTabs() {
   ];
   // X likes need your handle; history.js learns it the first time you open x.com normally.
   if (xUsername) urls.push(`https://x.com/${xUsername}/likes`);
-  urls.push("https://www.linkedin.com/my-items/saved-posts/");
-  // LinkedIn reactions need your handle; history.js learns it the first time you open linkedin.com.
-  if (liUsername) urls.push(`https://www.linkedin.com/in/${liUsername}/recent-activity/reactions/`);
 
   // Tell history.js "a sync is running" through storage (Reddit strips URL #markers).
   const now = Date.now();

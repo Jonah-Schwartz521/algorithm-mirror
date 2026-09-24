@@ -33,7 +33,7 @@ app.add_middleware(
     allow_origins=[
         "https://www.youtube.com",
         "https://www.reddit.com",
-        "https://x.com",
+        "https://x.com", "https://www.instagram.com",
         "https://twitter.com",
     ],
     allow_methods=["POST"],

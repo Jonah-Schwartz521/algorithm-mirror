@@ -125,7 +125,11 @@ async function harvestYouTube() {
 // ---- Instagram: the same JSON endpoints instagram.com itself calls ----
 const IG_APP_ID = "936619743392459";  // Instagram's public web-app id, sent by instagram.com on every call
 async function igJson(path) {
-  const r = await fetch(path, { credentials: "include", headers: { "X-IG-App-ID": IG_APP_ID } });
+  const csrf = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/)?.[1] || "";
+  const r = await fetch(path, {
+    credentials: "include",
+    headers: { "X-IG-App-ID": IG_APP_ID, "X-CSRFToken": csrf, "X-Requested-With": "XMLHttpRequest" },
+  });
   if (!r.ok) throw new Error(`${path} HTTP ${r.status}`);
   return r.json();
 }
@@ -146,12 +150,18 @@ function igItem(m) {
 }
 
 async function harvestInstagram() {
-  const items = [];
-  const liked = await igJson("/api/v1/feed/liked/");
-  for (const m of liked?.items || []) items.push(igItem(m));
-  const saved = await igJson("/api/v1/feed/saved/posts/");
-  for (const x of saved?.items || []) items.push(igItem(x.media || x));
-  return { found: items.filter(Boolean).length, added: await storeHistory(items) };
+  // Liked and saved are tried separately so one failing doesn't block the other.
+  const items = [], errors = {};
+  const lists = {
+    saved: ["/api/v1/feed/saved/posts/", (d) => (d?.items || []).map((x) => x.media || x)],
+  };
+  for (const [name, [path, pick]] of Object.entries(lists)) {
+    try { for (const m of pick(await igJson(path))) items.push(igItem(m)); }
+    catch (e) { errors[name] = e.message; }
+  }
+  const out = { found: items.filter(Boolean).length, added: await storeHistory(items) };
+  if (Object.keys(errors).length) out.errors = errors;
+  return out;
 }
 
 function rememberXUsername() {

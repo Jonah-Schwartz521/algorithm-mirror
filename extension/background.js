@@ -33,12 +33,14 @@ async function openHistoryTabs() {
     "https://www.reddit.com/settings/",  // any Reddit page works; history.js fetches upvoted/saved JSON
     "https://x.com/i/bookmarks",
     "https://www.youtube.com/feed/history",  // everything you watched, any device
+    "https://www.instagram.com/",  // any page works; history.js fetches liked/saved JSON
   ];
   // X likes need your handle; history.js learns it the first time you open x.com normally.
   if (xUsername) urls.push(`https://x.com/${xUsername}/likes`);
 
   // Tell history.js "a sync is running" through storage (Reddit strips URL #markers).
-  await chrome.storage.local.set({ historyPendingSince: Date.now() });
+  const now = Date.now();
+  await chrome.storage.local.set({ historyPendingSince: now, historyPending_reddit: now, historyPending_instagram: now });
 
   const ids = [];
   for (const url of urls) {

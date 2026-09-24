@@ -1,14 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Algorithm Mirror",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Logs what your feed shows you.",
   "permissions": [
     "storage",
     "alarms"
   ],
   "host_permissions": [
-    "http://localhost:8000/*"
+    "https://am.198-199-64-41.sslip.io/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -52,6 +52,19 @@
         "db.js",
         "x.js",
         "core.js",
+        "sync.js",
+        "history.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.instagram.com/*"
+      ],
+      "js": [
+        "config.js",
+        "db.js",
+        "instagram.js",
         "sync.js",
         "history.js"
       ],

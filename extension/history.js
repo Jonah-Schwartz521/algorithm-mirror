@@ -122,6 +122,38 @@ async function harvestYouTube() {
   return { found: items.length, added: await storeHistory(items) };
 }
 
+// ---- Instagram: the same JSON endpoints instagram.com itself calls ----
+const IG_APP_ID = "936619743392459";  // Instagram's public web-app id, sent by instagram.com on every call
+async function igJson(path) {
+  const r = await fetch(path, { credentials: "include", headers: { "X-IG-App-ID": IG_APP_ID } });
+  if (!r.ok) throw new Error(`${path} HTTP ${r.status}`);
+  return r.json();
+}
+
+function igItem(m) {
+  if (!m?.code) return null;
+  const author = m.user?.username || null;
+  const caption = (m.caption?.text || "").trim();
+  return {
+    itemId: `ig:${m.code}`,  // same id the export upload uses, so a post isn't counted twice
+    mediaType: m.product_type === "clips" ? "reel" : m.media_type === 2 ? "video" : "post",
+    title: (caption || (author ? `Instagram post from @${author}` : "")).slice(0, 300) || null,
+    channel: author,
+    channelHandle: author ? `/@${author}` : null,
+    duration: null,
+    isAd: false,
+  };
+}
+
+async function harvestInstagram() {
+  const items = [];
+  const liked = await igJson("/api/v1/feed/liked/");
+  for (const m of liked?.items || []) items.push(igItem(m));
+  const saved = await igJson("/api/v1/feed/saved/posts/");
+  for (const x of saved?.items || []) items.push(igItem(x.media || x));
+  return { found: items.filter(Boolean).length, added: await storeHistory(items) };
+}
+
 function rememberXUsername() {
   const href = document.querySelector('a[data-testid="AppTabBar_Profile_Link"]')?.getAttribute("href");
   if (href) chrome.storage.local.set({ xUsername: href.slice(1) });
@@ -132,18 +164,20 @@ function rememberXUsername() {
 
   // Run if the background just started a sync (flag in storage, set < 2 min ago),
   // or if you opened your own likes/upvotes/saves page yourself.
-  const { historyPendingSince = 0 } = await chrome.storage.local.get("historyPendingSince");
-  const syncRunning = Date.now() - historyPendingSince < 2 * 60 * 1000;
+  // Reddit and Instagram read JSON from any page, so each has its own "sync running" flag
+  // (set by background.js, valid for 2 minutes). X and YouTube only run on their history pages.
+  const JSON_PLATFORMS = ["reddit", "instagram"];
+  const flag = `historyPending_${PLATFORM.name}`;
+  const { [flag]: pendingSince = 0 } = await chrome.storage.local.get(flag);
+  const syncRunning = Date.now() - pendingSince < 2 * 60 * 1000;
   const isHistoryPage = PLATFORM.historyPage?.test(location.pathname);
-  // X only harvests on its likes/bookmarks pages; Reddit harvests from any page via JSON.
-  if (!isHistoryPage && !(syncRunning && PLATFORM.name === "reddit")) return;
-  if (PLATFORM.name === "reddit" && !isHistoryPage) {
-    await chrome.storage.local.set({ historyPendingSince: 0 });  // one Reddit run per sync
-  }
+  const isJson = JSON_PLATFORMS.includes(PLATFORM.name);
+  if (!isHistoryPage && !(syncRunning && isJson)) return;
+  if (isJson && !isHistoryPage) await chrome.storage.local.set({ [flag]: 0 });  // one run per sync
 
   let result;
   try {
-    const harvest = { reddit: harvestReddit, x: harvestX, youtube: harvestYouTube }[PLATFORM.name];
+    const harvest = { reddit: harvestReddit, x: harvestX, youtube: harvestYouTube, instagram: harvestInstagram }[PLATFORM.name];
     result = await harvest();
   } catch (e) {
     result = { error: e.message };

@@ -22,7 +22,8 @@ import ollama
 import psycopg
 from pydantic import BaseModel
 
-DB_URL = "postgresql://mirror:mirror@localhost/algorithm_mirror"
+import os
+DB_URL = os.environ.get("DATABASE_URL", "postgresql://mirror:mirror@localhost/algorithm_mirror")
 OLLAMA_HOST = "http://172.17.176.1:11434"  # Windows GPU Ollama, NOT localhost
 MODEL = "llama3.1:8b"
 MODEL_VERSION = "llama3.1-8b-v3"

@@ -4,7 +4,7 @@
 // what you did on your phone. history.js tags everything evidence="engagement".
 
 const HISTORY_EVERY_MIN = 180;   // how often to run
-const CLEANUP_AFTER_MIN = 2;     // force-close any history tab still open after this
+const CLEANUP_AFTER_MIN = 4;     // force-close any history tab still open after this
 
 function ensureAlarm() {
   chrome.alarms.get("history-sync", (a) => {

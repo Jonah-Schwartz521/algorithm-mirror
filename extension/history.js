@@ -67,6 +67,26 @@ async function harvestReddit() {
   return { found: items.length, added: await storeHistory(items) };
 }
 
+// Scroll a likes/history page until we reach items we already sent last time (caught up),
+// the page stops loading more, or we hit the cap. First run stays short so we don't
+// pull in months of old likes; later runs go deep enough to cover a long gap.
+async function scrollUntilCaughtUp(grab, byId) {
+  const seen = await loadSeen();
+  const maxScrolls = seen.size ? 40 : 8;
+  let stale = 0;
+  for (let i = 0; i < maxScrolls; i++) {
+    const before = byId.size;
+    grab();
+    const known = [...byId.keys()].filter((id) => seen.has(id)).length;
+    if (seen.size && known >= 10) break;            // reached last sync's items
+    stale = byId.size === before ? stale + 1 : 0;
+    if (stale >= 3) break;                          // page stopped loading more
+    window.scrollBy(0, innerHeight * 2);
+    await sleep(1500);
+  }
+  grab();
+}
+
 // ---- X: no public JSON, so read the likes/bookmarks page itself ----
 async function harvestX() {
   for (let i = 0; i < 20 && !document.querySelector(PLATFORM.tile); i++) await sleep(500);
@@ -76,8 +96,7 @@ async function harvestX() {
     if (it && !byId.has(it.itemId)) byId.set(it.itemId, it);
   });
   // A few scrolls is plenty when this runs every few hours.
-  for (let i = 0; i < 4; i++) { grab(); window.scrollBy(0, innerHeight * 2); await sleep(1500); }
-  grab();
+  await scrollUntilCaughtUp(grab, byId);
   const items = [...byId.values()];
   return { found: items.length, added: await storeHistory(items) };
 }
@@ -116,8 +135,7 @@ async function harvestYouTube() {
       });
     });
   };
-  for (let i = 0; i < 4; i++) { grab(); window.scrollBy(0, innerHeight * 2); await sleep(1500); }
-  grab();
+  await scrollUntilCaughtUp(grab, byId);
   const items = [...byId.values()];
   return { found: items.length, added: await storeHistory(items) };
 }

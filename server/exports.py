@@ -211,7 +211,13 @@ def parse_export(filename: str, data: bytes) -> tuple[str | None, list[Row]]:
     platform = detect_platform(files)
     if not platform:
         return None, []
-    return platform, PARSERS[platform](files)
+    rows = PARSERS[platform](files)
+    # Only keep recent history; the study doesn't need years of old videos.
+    import os
+    from datetime import timedelta
+    days = int(os.environ.get("EXPORT_DAYS", "60"))
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    return platform, [r for r in rows if r.entered_at and r.entered_at >= cutoff]
 
 
 def save_rows(cur, token: str, rows: list[Row]) -> dict:

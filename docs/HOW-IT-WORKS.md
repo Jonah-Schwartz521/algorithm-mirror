@@ -85,8 +85,7 @@ Each install gets a random ID (a "token"), never a name or email. Joining with a
 
 ## 4. The server
 
-The server is a small Python app (FastAPI) on a DigitalOcean droplet, with a Postgres database. It's reached over HTTPS through Caddy, a web server that handles the security certificate for free. It shares the droplet with Jonah's other project without touching it, and costs nothing beyond the droplet's flat monthly price.
-
+The server is a small Python app (FastAPI) on a DigitalOcean droplet, with a Postgres database. It's reached over HTTPS through Caddy, a web server that handles the security certificate for free. 
 What it does:
 
 - Receives synced data from the extension (`/sync`)

@@ -1,22 +1,17 @@
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 
-import psycopg
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from db import pool, query
+
 
 # --------------------------------------------------
 # Configuration
 # --------------------------------------------------
-
-DB_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql://mirror:mirror@localhost/algorithm_mirror",
-)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DASHBOARD_PATH = BASE_DIR / "dashboard" / "index.html"
@@ -39,6 +34,11 @@ app.add_middleware(
     allow_methods=["POST"],
     allow_headers=["Content-Type"],
 )
+
+
+@app.on_event("shutdown")
+def close_pool():
+    pool.close()
 
 
 # --------------------------------------------------
@@ -88,7 +88,7 @@ class Batch(BaseModel):
 
 @app.post("/sync")
 def sync(batch: Batch):
-    with psycopg.connect(DB_URL) as conn, conn.cursor() as cur:
+    with pool.connection() as conn, conn.cursor() as cur:
 
         for it in batch.items:
             cur.execute(
@@ -160,22 +160,6 @@ def sync(batch: Batch):
     return {
         "accepted": [e.id for e in batch.events]
     }
-
-
-# --------------------------------------------------
-# Database helper
-# --------------------------------------------------
-
-def query(sql: str, params: tuple):
-    with psycopg.connect(DB_URL) as conn, conn.cursor() as cur:
-        cur.execute(sql, params)
-
-        cols = [d.name for d in cur.description]
-
-        return [
-            dict(zip(cols, row))
-            for row in cur.fetchall()
-        ]
 
 
 # --------------------------------------------------
@@ -319,6 +303,7 @@ def daily(
         ),
     )
 
+
 # --------------------------------------------------
 # Topic / tone breakdown (classifier labels)
 # --------------------------------------------------
@@ -367,6 +352,7 @@ def topics(token: str, platform: str | None = None, evidence: str = "impression"
 @app.get("/users/{token}/tones")
 def tones(token: str, platform: str | None = None):
     return label_breakdown("tone", token, platform)
+
 
 @app.get("/users/{token}/freshness")
 def freshness(token: str):

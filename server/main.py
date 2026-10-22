@@ -28,7 +28,7 @@ app.add_middleware(
     allow_origins=[
         "https://www.youtube.com",
         "https://www.reddit.com",
-        "https://x.com", "https://www.instagram.com", "https://www.linkedin.com",
+        "https://x.com", "https://www.linkedin.com",
         "https://twitter.com",
     ],
     allow_methods=["POST"],
@@ -369,8 +369,6 @@ def freshness(token: str):
     )[0]
 
 
-from uploads import router as upload_router
-app.include_router(upload_router)
 
 from participants import router as participants_router
 app.include_router(participants_router)

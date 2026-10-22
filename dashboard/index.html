@@ -165,7 +165,6 @@
       </div>
       <div class="head-actions">
         <span class="who" id="who" hidden></span>
-        <a class="theme-btn" id="upload-link" href="/upload">+ Add TikTok / Instagram data</a>
         <button class="theme-btn" id="theme">🌙 Dark</button>
       </div>
     </header>
@@ -204,8 +203,6 @@
       { key: "youtube", label: "YouTube", color: "#e0382e", sourceWord: "channels", engagedWord: "watched" },
       { key: "reddit",  label: "Reddit",  color: "#ff5700", sourceWord: "subreddits", engagedWord: "upvoted or saved" },
       { key: "x",       label: "X",       color: "#1d9bf0", sourceWord: "accounts", engagedWord: "liked or bookmarked" },
-      { key: "tiktok",  label: "TikTok",  color: "#11b5bb", sourceWord: "creators", engagedWord: "liked", fromExport: true },
-      { key: "instagram", label: "Instagram", color: "#c13584", sourceWord: "accounts", engagedWord: "liked or saved", fromExport: true },
       { key: "linkedin", label: "LinkedIn", color: "#0a66c2", sourceWord: "accounts", engagedWord: "reacted to on this computer" },
     ];
     const byKey = Object.fromEntries(PLATFORMS.map((p) => [p.key, p]));
@@ -506,7 +503,6 @@
       el.hidden = false;
     }).catch(() => {});
 
-    document.getElementById("upload-link").href = `/upload?token=${encodeURIComponent(token || "")}`;
     if (!token) {
       document.body.innerHTML = "<p style='padding:40px;font-family:system-ui'>Add <code>?token=YOUR_TOKEN</code> to the URL.</p>";
     } else {
